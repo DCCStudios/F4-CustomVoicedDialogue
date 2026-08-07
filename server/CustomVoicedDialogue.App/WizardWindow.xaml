@@ -1,0 +1,82 @@
+<Window x:Class="CustomVoicedDialogue.App.WizardWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="CustomVoicedDialogue setup" Height="560" Width="760" WindowStartupLocation="CenterOwner"
+        Background="#FF1E1E24" Foreground="#FFE8E8E8" ResizeMode="NoResize">
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#FFE8E8E8"/>
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Margin" Value="4"/>
+            <Setter Property="MinWidth" Value="100"/>
+        </Style>
+    </Window.Resources>
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="StepTitle" Grid.Row="0" FontSize="20" FontWeight="Bold" Margin="0,0,0,12"/>
+
+        <!-- Step 1: pick a service -->
+        <ScrollViewer x:Name="StepProvider" Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <TextBlock TextWrapping="Wrap" Opacity="0.85" Margin="0,0,0,10"
+                           Text="Pick the text-to-speech service that will voice your dialogue. Cloud services need an API key and sound best; local services are free and private. Services detected running on this PC are marked."/>
+                <ItemsControl x:Name="ProviderList"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Step 2: configure + mandatory test -->
+        <Grid x:Name="StepConfigure" Grid.Row="1" Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+                <StackPanel x:Name="ConfigurePanel"/>
+            </ScrollViewer>
+            <Border Grid.Row="1" Background="#FF2A2A33" Padding="10" CornerRadius="4" Margin="0,10,0,0">
+                <StackPanel>
+                    <TextBlock TextWrapping="Wrap" Opacity="0.85"
+                               Text="A successful test is required before continuing — you should hear a spoken line."/>
+                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                        <Button x:Name="WizardTestButton" Content="Test synthesis ▶" Click="OnWizardTest"/>
+                        <TextBlock x:Name="WizardTestResult" VerticalAlignment="Center" Margin="8,0,0,0" TextWrapping="Wrap" MaxWidth="440"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Step 3: player voice -->
+        <StackPanel x:Name="StepVoice" Grid.Row="1" Visibility="Collapsed">
+            <TextBlock TextWrapping="Wrap" Opacity="0.85" Margin="0,0,0,10"
+                       Text="Choose the voice for your own character. Preview until it feels right — you can change it any time."/>
+            <StackPanel Orientation="Horizontal">
+                <ComboBox x:Name="WizardVoiceCombo" Width="320" IsEditable="True"/>
+                <Button Content="Preview ▶" Click="OnWizardPreview"/>
+            </StackPanel>
+            <TextBlock x:Name="WizardVoiceResult" Margin="0,8,0,0"/>
+        </StackPanel>
+
+        <!-- Step 4: done -->
+        <StackPanel x:Name="StepDone" Grid.Row="1" Visibility="Collapsed">
+            <TextBlock TextWrapping="Wrap" FontSize="14" Text="Setup is complete. The server starts automatically with this app."/>
+            <TextBlock TextWrapping="Wrap" Margin="0,12,0,0" Opacity="0.85" Text="Checklist for playing:"/>
+            <TextBlock Margin="16,6,0,0" Text="1.  Keep this app running while you play."/>
+            <TextBlock Margin="16,2,0,0" Text="2.  Install the CustomVoicedDialogue mod (F4SE plugin) in your mod manager."/>
+            <TextBlock Margin="16,2,0,0" Text="3.  Launch Fallout 4 through F4SE — unvoiced dialogue now speaks."/>
+            <TextBlock TextWrapping="Wrap" Margin="0,12,0,0" Opacity="0.7"
+                       Text="NPC voices are off by default; enable them by setting bEnableNPCLines=1 in Data\F4SE\Plugins\CustomVoicedDialogue.ini."/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button x:Name="BackButton" Content="Back" Click="OnBack" Visibility="Collapsed"/>
+            <Button x:Name="NextButton" Content="Next" Click="OnNext" IsEnabled="False"/>
+        </StackPanel>
+    </Grid>
+</Window>

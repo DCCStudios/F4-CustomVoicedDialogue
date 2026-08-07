@@ -1,0 +1,31 @@
+# --- Secrets / user data -----------------------------------------------------
+# The companion app writes its config (including the DPAPI-encrypted API key)
+# next to its executable.  It must never be committed.
+CustomVoicedDialogue.config.json
+*.config.json
+soundcache/
+*.log
+
+# --- Build output ------------------------------------------------------------
+# C++ plugin (xmake)
+plugin/build/
+plugin/.xmake/
+Compile/
+
+# C# server + app (dotnet)
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+
+# Packaged releases (built by packaging/build-package.ps1)
+packaging/dist/
+
+# --- Editors / OS ------------------------------------------------------------
+.vs/
+.idea/
+.vscode/
+*.swp
+Thumbs.db
+desktop.ini
+.DS_Store

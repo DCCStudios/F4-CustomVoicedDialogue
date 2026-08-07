@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<fomod>
+  <Name>CustomVoicedDialogue</Name>
+  <Author>TheShinyHaxorus</Author>
+  <Version>0.1.0</Version>
+  <Website>https://github.com/DCCStudios/F4-CustomVoicedDialogue</Website>
+  <Description>Voices unvoiced Fallout 4 dialogue with text-to-speech. Requires F4SE and the CustomVoicedDialogue companion app running on the same PC.</Description>
+</fomod>

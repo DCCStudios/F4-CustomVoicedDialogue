@@ -1,0 +1,189 @@
+<Window x:Class="CustomVoicedDialogue.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="CustomVoicedDialogue" Height="640" Width="900" MinHeight="480" MinWidth="720"
+        Background="#FF1E1E24" Foreground="#FFE8E8E8">
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#FFE8E8E8"/>
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="Margin" Value="4"/>
+            <Setter Property="MinWidth" Value="90"/>
+        </Style>
+        <Style TargetType="TabItem">
+            <Setter Property="Padding" Value="12,4"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Status header: three lights answering "why isn't it working". -->
+        <Border Grid.Row="0" Background="#FF2A2A33" Padding="12,8">
+            <StackPanel Orientation="Horizontal">
+                <Ellipse x:Name="ServerLight" Width="12" Height="12" Fill="Gray" VerticalAlignment="Center"/>
+                <TextBlock x:Name="ServerLightText" Text="Server stopped" Margin="6,0,24,0" VerticalAlignment="Center"/>
+                <Ellipse x:Name="ProviderLight" Width="12" Height="12" Fill="Gray" VerticalAlignment="Center"/>
+                <TextBlock x:Name="ProviderLightText" Text="Provider not configured" Margin="6,0,24,0" VerticalAlignment="Center"/>
+                <Ellipse x:Name="GameLight" Width="12" Height="12" Fill="Gray" VerticalAlignment="Center"/>
+                <TextBlock x:Name="GameLightText" Text="Game not connected" Margin="6,0,0,0" VerticalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
+        <TabControl Grid.Row="1" Background="#FF1E1E24" BorderThickness="0">
+            <TabItem Header="Server">
+                <StackPanel Margin="16">
+                    <TextBlock Text="Local TTS server" FontSize="18" FontWeight="Bold" Margin="0,0,0,8"/>
+                    <TextBlock TextWrapping="Wrap" Opacity="0.8"
+                               Text="The game's CustomVoicedDialogue plugin talks to this server on localhost. Keep it running while you play."/>
+                    <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                        <Button x:Name="StartStopButton" Content="Start server" Click="OnStartStopServer"/>
+                        <TextBlock VerticalAlignment="Center" Margin="16,0,4,0" Text="Port:"/>
+                        <TextBox x:Name="PortBox" Width="70" VerticalAlignment="Center"/>
+                        <Button Content="Apply port" Click="OnApplyPort"/>
+                    </StackPanel>
+                    <CheckBox x:Name="AutoStartCheck" Content="Start the server when this app launches" Margin="0,12,0,0"
+                              Foreground="#FFE8E8E8" Checked="OnAutoStartChanged" Unchecked="OnAutoStartChanged"/>
+                    <TextBlock x:Name="CacheStatsText" Margin="0,16,0,4" Opacity="0.8"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Open audio cache" Click="OnOpenCache"/>
+                        <Button Content="Clear cached audio" Click="OnClearCache"/>
+                    </StackPanel>
+                    <TextBlock Margin="0,20,0,4" FontWeight="Bold" Text="Recent activity"/>
+                    <ListBox x:Name="ServerLog" Height="180" Background="#FF17171C" Foreground="#FFCFCFCF" BorderThickness="0"/>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem Header="TTS Provider">
+                <Grid Margin="16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0" Orientation="Horizontal">
+                        <TextBlock Text="Service:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ComboBox x:Name="ProviderCombo" Width="260" SelectionChanged="OnProviderSelected"/>
+                        <Button x:Name="TestConnectionButton" Content="Test connection" Click="OnTestConnection"/>
+                        <TextBlock x:Name="TestConnectionResult" VerticalAlignment="Center" Margin="8,0,0,0" TextWrapping="Wrap" MaxWidth="320"/>
+                    </StackPanel>
+                    <ScrollViewer Grid.Row="1" Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="SettingsPanel"/>
+                    </ScrollViewer>
+                    <Border Grid.Row="2" Background="#FF2A2A33" Padding="10" Margin="0,8,0,0" CornerRadius="4">
+                        <StackPanel>
+                            <TextBlock FontWeight="Bold" Text="Test synthesis"/>
+                            <StackPanel x:Name="TestVoicePanel" Margin="0,6,0,0"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                <TextBox x:Name="TestSynthesisText" Width="420" Text="I've been looking for this vault for weeks."/>
+                                <Button x:Name="TestSynthesisButton" Content="Synthesize ▶" Click="OnTestSynthesis"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                <CheckBox x:Name="TestAutoTagCheck" Content="Auto-tag emotion steering (Inworld tts-2)"
+                                          Foreground="#FFE8E8E8" VerticalAlignment="Center"/>
+                                <Button Content="Sample line" Click="OnSampleTestLine" Margin="12,0,0,0"/>
+                            </StackPanel>
+                            <TextBlock x:Name="TestSynthesisResult" Margin="0,6,0,0" TextWrapping="Wrap" Opacity="0.9"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Player Voice">
+                <StackPanel Margin="16">
+                    <TextBlock Text="Your character's voice" FontSize="18" FontWeight="Bold" Margin="0,0,0,8"/>
+                    <TextBlock TextWrapping="Wrap" Opacity="0.8"
+                               Text="This voice speaks every dialogue option you pick that has no recorded audio."/>
+                    <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                        <ComboBox x:Name="PlayerVoiceCombo" Width="320" IsEditable="True"/>
+                        <Button Content="Refresh voices" Click="OnRefreshVoices"/>
+                        <Button Content="Preview ▶" Click="OnPreviewPlayerVoice"/>
+                        <Button Content="Save" Click="OnSavePlayerVoice"/>
+                    </StackPanel>
+                    <TextBlock x:Name="PlayerVoiceResult" Margin="0,8,0,0" Opacity="0.9"/>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem Header="NPC Voices">
+                <Grid Margin="16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0">
+                        <TextBlock TextWrapping="Wrap" Opacity="0.8"
+                                   Text="NPC lines are voiced only when enabled in the plugin's INI (bEnableNPCLines=1). Voices are assigned automatically and deterministically per voice type; set an override to pin a specific voice. Voice types appear here as the game encounters them."/>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <Button Content="Refresh" Click="OnRefreshNpcGrid"/>
+                            <Button Content="Save overrides" Click="OnSaveNpcOverrides"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <DataGrid x:Name="NpcGrid" Grid.Row="1" Margin="0,8,0,0" AutoGenerateColumns="False"
+                              CanUserAddRows="False" HeadersVisibility="Column">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Voice type" Binding="{Binding VoiceType}" IsReadOnly="True" Width="200"/>
+                            <DataGridTextColumn Header="Auto-assigned voice" Binding="{Binding AutoVoice}" IsReadOnly="True" Width="200"/>
+                            <DataGridTextColumn Header="Override (blank = auto)" Binding="{Binding Override}" Width="200"/>
+                            <DataGridTemplateColumn Header="" Width="80">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Content="▶" Click="OnPreviewNpcVoice" Tag="{Binding}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Diagnostics">
+                <Grid Margin="16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0" Orientation="Horizontal">
+                        <Button Content="Simulate game request" Click="OnSimulateGameRequest"/>
+                        <TextBlock x:Name="SimulateResult" VerticalAlignment="Center" Margin="8,0,0,0" TextWrapping="Wrap" MaxWidth="500"/>
+                    </StackPanel>
+                    <DataGrid x:Name="HistoryGrid" Grid.Row="1" Margin="0,8,0,0" AutoGenerateColumns="False" IsReadOnly="True"
+                              HeadersVisibility="Column">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Time" Binding="{Binding Time}" Width="80"/>
+                            <DataGridTextColumn Header="Text" Binding="{Binding Text}" Width="260"/>
+                            <DataGridTextColumn Header="Voice" Binding="{Binding Voice}" Width="140"/>
+                            <DataGridTextColumn Header="ms" Binding="{Binding Milliseconds}" Width="70"/>
+                            <DataGridTextColumn Header="Result" Binding="{Binding ResultText}" Width="180"/>
+                            <DataGridTemplateColumn Header="" Width="70">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Content="▶" Click="OnReplayHistory" Tag="{Binding}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Updates">
+                <StackPanel Margin="16">
+                    <TextBlock x:Name="CurrentVersionText" FontSize="16"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                        <Button Content="Check for updates" Click="OnCheckUpdates"/>
+                        <TextBlock x:Name="UpdateResult" VerticalAlignment="Center" Margin="8,0,0,0" TextWrapping="Wrap" MaxWidth="500"/>
+                    </StackPanel>
+                    <Button x:Name="OpenReleaseButton" Content="Open download page" Click="OnOpenRelease" Visibility="Collapsed"
+                            HorizontalAlignment="Left" Margin="0,8,0,0"/>
+                    <CheckBox x:Name="UpdateCheckBox" Content="Check for updates when the app starts" Margin="0,16,0,0"
+                              Foreground="#FFE8E8E8" Checked="OnUpdatePrefChanged" Unchecked="OnUpdatePrefChanged"/>
+                </StackPanel>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</Window>

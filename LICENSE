@@ -1,21 +1,35 @@
-MIT License
+# Licensing
 
-Copyright (c) 2026 DCC Studios
+This project is split-licensed, because its two halves have different
+lineages.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+## `plugin/` — GNU General Public License v3.0
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+The F4SE plugin is **GPL-3.0**. Its engine-interception design, struct
+layouts, and silence-fallback behaviour derive from
+[F4z Ro D'oh](https://github.com/shadeMe/F4z-Ro-D-oh) by shadeMe, which is
+GPL-3, so the plugin inherits that licence.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+Full text: [LICENSE-GPL-3.0](LICENSE-GPL-3.0)
+
+## `server/`, `tools/`, `packaging/` — MIT
+
+The companion app, the localhost server, the TTS provider layer, and the
+offline verification tooling are **MIT**. They are original C# work; the
+provider architecture is a from-scratch port of concepts (not code) from
+[HerikaServer / CHIM](https://github.com/abeiro/HerikaServer), itself MIT.
+
+Full text: [LICENSE-MIT](LICENSE-MIT)
+
+## Third-party components
+
+- [CommonLibF4](https://github.com/Dear-Modding-FO4/commonlibf4) — MIT,
+  included as a git submodule (not vendored).
+- NAudio — MIT, restored via NuGet.
+- Xbyak — BSD-3-Clause, via CommonLibF4.
+
+## Assets
+
+All audio assets shipped with the mod (the silence carriers and the
+playback slot files) are generated from scratch by
+`tools/SilenceGen/generate.ps1`. No third-party assets are redistributed.

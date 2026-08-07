@@ -1,0 +1,53 @@
+{
+  "//": "Pre-release gate: verifies every code site the plugin patches or calls, per runtime, without launching the game. Run: dotnet run --project CvdTools -- guardcheck guardcheck.manifest.json. OG 1.10.163 is absent because its executable is encrypted on disk; the plugin resolves OG at runtime via signature scans and fails closed.",
+  "runtimes": {
+    "NG": {
+      "exe": "../../PluginTemplate/Game EXEs/Fallout4_NG.exe.unpacked.exe",
+      "bin": "../../PluginTemplate/AddressLibrary/F4SE/Plugins/version-1-10-984-0.bin"
+    },
+    "AE": {
+      "exe": "../../PluginTemplate/Game EXEs/Fallout4_AE.exe",
+      "bin": "../../PluginTemplate/AddressLibrary/F4SE/Plugins/version-1-11-221-0.bin"
+    }
+  },
+  "sites": [
+    {
+      "name": "DialogueResponse::ctor voice-path call (main hook site)",
+      "id": { "NG": 2227131, "AE": 2227131 },
+      "delta": { "NG": "0x102", "AE": "0x102" },
+      "expected": { "NG": "E8", "AE": "E8" },
+      "callTargetId": { "NG": 2268671, "AE": 2268671 }
+    },
+    {
+      "name": "DialogueResponse::ctor BuildVoicePath call (prefetch dependency)",
+      "id": { "NG": 2227131, "AE": 2227131 },
+      "delta": { "NG": "0xED", "AE": "0xED" },
+      "expected": { "NG": "E8", "AE": "E8" },
+      "callTargetId": { "NG": 2208307, "AE": 2208307 }
+    },
+    {
+      "name": "ShowSubtitle dialogue-subs read",
+      "id": { "NG": 2249542, "AE": 2249542 },
+      "delta": { "NG": "0xB6", "AE": "0xB6" },
+      "expected": { "NG": "40382D", "AE": "40382D" }
+    },
+    {
+      "name": "ShowSubtitle general-subs read",
+      "id": { "NG": 2249542, "AE": 2249542 },
+      "delta": { "NG": "0x17D", "AE": "0x17D" },
+      "expected": { "NG": "0FB605", "AE": "0FB605" }
+    },
+    {
+      "name": "DisplayNextSubtitle dialogue-subs read",
+      "id": { "NG": 2249551, "AE": 2249551 },
+      "delta": { "NG": "0x12B", "AE": "0x12B" },
+      "expected": { "NG": "803D", "AE": "803D" }
+    },
+    {
+      "name": "DisplayNextSubtitle general-subs read",
+      "id": { "NG": 2249551, "AE": 2249551 },
+      "delta": { "NG": "0x141", "AE": "0x141" },
+      "expected": { "NG": "803D", "AE": "803D" }
+    }
+  ]
+}
