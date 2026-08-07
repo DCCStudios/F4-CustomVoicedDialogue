@@ -33,7 +33,7 @@ namespace CustomVoicedDialogue::Settings
 
 		std::uint32_t g_ttsVolumePercent{ 100 };
 		bool g_directAudioPlayback{ false };
-		bool g_showGenerationProgress{ true };
+		bool g_showGenerationProgress{ false };
 		bool g_engineAudioForFreshLines{ true };
 
 		// Remembered so the in-game menu can persist changes.

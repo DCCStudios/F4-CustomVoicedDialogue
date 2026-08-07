@@ -179,7 +179,7 @@ Located at `Data\F4SE\Plugins\CustomVoicedDialogue.ini`.
 | `iTtsVolumePercent` | `100` | Volume applied as audio is generated (0–150). Only affects newly generated lines. |
 | `bDirectAudioPlayback` | `0` | Always play generated player lines outside the engine's voice-file system. |
 | `bEngineAudioForFreshLines` | `1` | Play freshly generated lines through the game's audio system (3D, volume sliders, ducking) using the pre-indexed slot files. Falls back automatically. |
-| `bShowGenerationProgress` | `1` | Small corner progress bar while a conversation's audio generates. |
+| `bShowGenerationProgress` | `0` | Small corner progress bar while a conversation's audio generates. Off by default; turn it on to watch generation happen. |
 
 ### `[Server]`
 
