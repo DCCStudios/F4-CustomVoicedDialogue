@@ -214,7 +214,8 @@ text so the subtitle stays readable.
 
 ## In-game settings menu
 
-With [F4SE Menu Framework](https://www.nexusmods.com/fallout4/mods/64420)
+With [F4SE Menu Framework](https://www.nexusmods.com/fallout4/mods/105090)
+([source](https://github.com/DCCStudios/F4SEMenuFramework))
 installed, a **CustomVoicedDialogue** section appears in its menu with live
 toggles that write straight back to the INI:
 
@@ -248,23 +249,45 @@ in the app, rendered from the provider's schema.
 
 **Local (free, runs on your PC)**
 
-| Provider | Default port |
-|---|---|
-| xVASynth — **native Fallout 4 voice models** (`f4_*`) | 8008 |
-| Piper | 5000 |
-| Kokoro | 8880 |
-| XTTS (FastAPI) | 8020 |
-| PocketTTS | 8086 / 8024 |
-| Chatterbox | 8023 |
-| OmniVoice | 8021 |
-| MeloTTS | 8084 |
-| Mimic 3 | 59125 |
-| KoboldCpp | 5001 |
+> **These are separate programs you install and run yourself.** This app does
+> not bundle, download, install, or launch any of them — it only talks HTTP
+> to a server that is already listening on your machine. Install the one you
+> want from its own project page below, start it, and then pick it in the
+> wizard.
 
-The wizard probes these ports and badges anything already running as
-"ready to use". xVASynth is the standout for lore-friendly results: it ships
-actual Fallout 4 voice models, and NPC voice types are matched to their
-`f4_*` model automatically.
+| Provider | Default port | Get it from |
+|---|---|---|
+| xVASynth — **native Fallout 4 voice models** (`f4_*`) | 8008 | [xVASynth v3 (Nexus)](https://www.nexusmods.com/skyrimspecialedition/mods/44184) |
+| Piper | 5000 | [OHF-Voice/piper1-gpl](https://github.com/OHF-Voice/piper1-gpl) |
+| Kokoro | 8880 | [remsky/Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) |
+| XTTS (voice cloning) | 8020 | [daswer123/xtts-api-server](https://github.com/daswer123/xtts-api-server) |
+| PocketTTS | 8086 / 8024 | [CHIM (Nexus)](https://www.nexusmods.com/skyrimspecialedition/mods/126330) |
+| Chatterbox | 8023 | [resemble-ai/chatterbox](https://github.com/resemble-ai/chatterbox) |
+| OmniVoice | 8021 | [CHIM (Nexus)](https://www.nexusmods.com/skyrimspecialedition/mods/126330) |
+| MeloTTS | 8084 | [myshell-ai/MeloTTS](https://github.com/myshell-ai/MeloTTS) |
+| Mimic 3 | 59125 | [MycroftAI/mimic3](https://github.com/MycroftAI/mimic3) |
+| KoboldCpp | 5001 | [LostRuins/koboldcpp](https://github.com/LostRuins/koboldcpp) |
+
+Most of these are Python servers with their own dependency setup — follow
+the instructions on the project's own page. Once the service is listening,
+the wizard does the rest:
+
+- It **probes all of these ports** when it opens and badges anything it
+  finds as `● running — ready to use`, so a service you already have up is
+  one click away.
+- It **pre-fills the endpoint** with the default port above, so there is
+  usually nothing to type.
+- Each provider's settings panel links straight to its setup page.
+- The wizard **will not let you continue until a real test synthesis
+  succeeds**, so a service that isn't running fails there rather than
+  silently in-game.
+
+xVASynth is the standout for lore-friendly results: it ships actual
+Fallout 4 voice models, and NPC voice types are matched to their `f4_*`
+model automatically.
+
+**Prefer zero setup?** The cloud providers need nothing installed — paste
+an API key and you are done.
 
 ---
 
