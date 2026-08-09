@@ -70,14 +70,19 @@ internal static class AccentPhonology
                 // the flat "naht" nor the full "naight"), -ing drops its
                 // g, the r's stay American except the unstressed codas
                 // that audibly soften (brother → brʌðə, walkers →
-                // wɔːkəz), and the full-mouth delivery holds every long
+                // wɔːkəz), the full-mouth delivery holds every long
                 // vowel as a sustained pure sound rather than letting it
-                // glide (sweet → swiːːt, "swEET" not "swe-eit").
-                // Deliberately NO pen-pin merger and NO MOUTH fronting —
-                // linguists note both absences as tells of the portrayal.
+                // glide (sweet → swiːːt, "swEET" not "swe-eit"), and the
+                // same clear, driven-forward articulation restores the
+                // historical l that General American drops in the
+                // walk/talk family (walk → wɔːlk, not the "wark" an
+                // unbroken held vowel reads as).  Deliberately NO
+                // pen-pin merger and NO MOUTH fronting — linguists note
+                // both absences as tells of the portrayal.
                 Vowel(p, "aɪ", "ɐɪ");
                 UnstressedDerhoting(p);
                 IngToIn(p);
+                RestoreSilentL(word, p);
                 HoldLongVowels(p);
                 break;
             case "boston":
@@ -543,24 +548,48 @@ internal static class AccentPhonology
         }
     }
 
+    /// <summary>Rick Grimes' clear, driven-forward articulation restores
+    /// the historical l General American drops in the walk/talk family
+    /// (walk → wɔːlk) — a bare long back vowel run straight into a k
+    /// reads as an r-coloured "wark" rather than "walk", and an actual l
+    /// consonant is the reliable fix.  Scoped to the "alk" spelling so it
+    /// never fires on a word (like hawk) that never had the letter.</summary>
+    private static void RestoreSilentL(string word, List<Phone> p)
+    {
+        if (!word.Contains("alk", StringComparison.Ordinal))
+        {
+            return;
+        }
+        for (var i = 0; i < p.Count; i++)
+        {
+            if (p[i].Sound == "ɔː" && i + 1 < p.Count && p[i + 1].Sound == "k")
+            {
+                p.Insert(i + 1, new Phone("l", -1));
+                return;
+            }
+        }
+    }
+
     /// <summary>Rick Grimes' full-mouth articulation: every already-long
     /// vowel (FLEECE, GOOSE, START, THOUGHT, NURSE…) gets an extra length
     /// mark, sustaining it as a pure held sound instead of letting it
-    /// glide toward the next one (sweet → swiːːt).  The syllable actually
-    /// carrying the word's stress gets a second extra mark on top of
-    /// that — the driven-forward emphasis that lands specifically on the
-    /// stressed syllable rather than spreading evenly across the word
-    /// (walkers → wɔːːːkəz, "wAALL-kers"; Carl → kɑːːːɹl, "CAArl").
-    /// Diphthongs are left alone — a glide is what they are — this only
-    /// extends vowels that were already a single sustained sound.</summary>
+    /// glide toward the next one (sweet → swiːːt).  Diphthongs are left
+    /// alone — a glide is what they are — this only extends vowels that
+    /// were already a single sustained sound.  Measured on
+    /// inworld-tts-2: a THIRD length mark on the stressed syllable, tried
+    /// to push the emphasis further ("wAALL-kers"), reliably fragmented
+    /// the sentence into extra pauses (3 vs. the 1 the plain line and
+    /// this doubled version both get) — so the hold stays uniform
+    /// regardless of stress, and the stressed-syllable emphasis for
+    /// words like "walkers" instead comes from restoring their missing
+    /// consonants (see RestoreSilentL).</summary>
     private static void HoldLongVowels(List<Phone> p)
     {
         for (var i = 0; i < p.Count; i++)
         {
             if (p[i].IsVowel && p[i].Sound.EndsWith('ː'))
             {
-                var extra = p[i].Stress == 1 ? "ːː" : "ː";
-                p[i] = p[i] with { Sound = p[i].Sound + extra };
+                p[i] = p[i] with { Sound = p[i].Sound + "ː" };
             }
         }
     }
@@ -731,6 +760,7 @@ internal static class AccentPhonology
     {
         "caught", "taught", "fought", "bought", "brought", "sought", "wrought",
         "naught", "naughty", "slaughter", "daughter", "daughters",
+        "chalk", "chalky", "chalkboard",
     };
 
     private static readonly Lazy<Dictionary<string, string>> Dictionary = new(Load);

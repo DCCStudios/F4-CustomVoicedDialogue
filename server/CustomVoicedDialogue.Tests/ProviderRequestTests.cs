@@ -427,7 +427,7 @@ public class ProviderRequestTests
     [InlineData("southern-grimes", "right", "ɹɐɪt")]       // PRICE keeps a trace of its glide
     [InlineData("southern-grimes", "night", "nɐɪt")]       // "nigh-t": not "naht", not "naight"
     [InlineData("southern-grimes", "brother", "ˈbɹʌðə")]   // unstressed coda r drops
-    [InlineData("southern-grimes", "walkers", "ˈwɔːːːkəz")] // coda r drops, stressed vowel tripled
+    [InlineData("southern-grimes", "walkers", "ˈwɔːːlkəz")] // coda r drops, l restored, vowel held
     [InlineData("russian", "everything", "ˈɛvriːˌsɪŋ")]    // th → s
     [InlineData("german", "javelin", "ˈtʃɛvələn")]         // dʒ → tʃ, æ → ɛ
     [InlineData("spanish-mexican", "strange", "esˈtɾeɪndʒ")] // tapped cluster r
@@ -483,10 +483,12 @@ public class ProviderRequestTests
         // Southern stays milder than Deep South on the same word.
         Assert.Null(AccentPhonology.Derive(Accents.Get("southern"), "right"));
         Assert.Equal("ɹɑːt", AccentPhonology.Derive(Accents.Get("deep-south"), "right"));
-        // Rick Grimes: stressed syllables keep their r (only the vowel
-        // holds, tripled since it carries primary stress), and — per the
-        // linguists — NO pen-pin merger (general Southern does merge).
-        Assert.Equal("hɑːːːɹd", AccentPhonology.Derive(Accents.Get("southern-grimes"), "hard"));
+        // Rick Grimes: stressed syllables keep their r (the vowel holds
+        // by the same uniform amount every other long vowel gets — a
+        // third length mark measurably fragmented sentences into extra
+        // pauses and was dropped), and — per the linguists — NO pen-pin
+        // merger (general Southern does merge).
+        Assert.Equal("hɑːːɹd", AccentPhonology.Derive(Accents.Get("southern-grimes"), "hard"));
         Assert.Null(AccentPhonology.Derive(Accents.Get("southern-grimes"), "pen"));
         Assert.Null(AccentPhonology.Derive(Accents.Get("southern-grimes"), "ten"));
         Assert.Equal("pɪn", AccentPhonology.Derive(Accents.Get("southern"), "pen"));
@@ -495,19 +497,24 @@ public class ProviderRequestTests
         // hold every other word gets.
         Assert.Contains("/ˈkɔɹəl/", AccentLexicon.Apply(
             Accents.Get("southern-grimes"), "Carl! Stay back, Carl!", "k", 0));
-        Assert.DoesNotContain("kɑːːːɹl", AccentLexicon.Apply(
+        Assert.DoesNotContain("kɑːːɹl", AccentLexicon.Apply(
             Accents.Get("southern-grimes"), "Carl! Stay back, Carl!", "k", 0));
         // "Yeah" gets the full-mouth "yeeAah" stretch, not the quick
         // standard glide.
         Assert.Contains("/jiːːˈæːːə/", AccentLexicon.Apply(
             Accents.Get("southern-grimes"), "Yeah, I heard you.", "k", 0));
         // Full-mouth articulation holds any already-long vowel as a
-        // sustained sound, tripled on the stressed syllable (sweet →
-        // swiːːːt, "swEET" not "swe-eit"), but
+        // sustained sound (sweet → swiːːt, "swEET" not "swe-eit"), but
         // leaves diphthongs — genuine glides — untouched.
-        Assert.Equal("swiːːːt", AccentPhonology.Derive(Accents.Get("southern-grimes"), "sweet"));
-        Assert.Equal("niːːːdz", AccentPhonology.Derive(Accents.Get("southern-grimes"), "needs"));
+        Assert.Equal("swiːːt", AccentPhonology.Derive(Accents.Get("southern-grimes"), "sweet"));
+        Assert.Equal("niːːdz", AccentPhonology.Derive(Accents.Get("southern-grimes"), "needs"));
         Assert.DoesNotContain("ɐɪː", AccentPhonology.Derive(Accents.Get("southern-grimes"), "right") ?? "");
+        // The historical l General American drops in walk/talk-family
+        // words is restored — a bare held vowel into k reads as "wark".
+        Assert.Equal("ˈtɔːːlkɪn", AccentPhonology.Derive(Accents.Get("southern-grimes"), "talking"));
+        Assert.Equal("tʃɔːːlk", AccentPhonology.Derive(Accents.Get("southern-grimes"), "chalk"));
+        // Never fires on a word that never had the letter.
+        Assert.Equal("hɔːːk", AccentPhonology.Derive(Accents.Get("southern-grimes"), "hawk"));
     }
 
     [Fact]
