@@ -213,6 +213,18 @@ public static class AccentLexicon
             ["around"] = "əˈræʊnd", ["south"] = "sæʊθ", ["oil"] = "ɔːl",
         }),
 
+        // Rick Grimes: NOT built on the Southern base — the portrayal
+        // famously lacks the pen-pin merger, so those entries must not
+        // ride along.  The rules flatten PRICE and drop unstressed-coda
+        // r's; here live the stoplisted carriers and the signatures.
+        ["southern-grimes"] = new(StringComparer.Ordinal)
+        {
+            ["i"] = "ɑː", ["my"] = "mɑː",
+            ["thing"] = "θæŋ", ["things"] = "θæŋz", ["get"] = "ɡɪt",
+            // The "Coral" phenomenon: the -ar-l breaks into two syllables.
+            ["carl"] = "ˈkɔrəl", ["carl's"] = "ˈkɔrəlz",
+        },
+
         ["boston"] = Merge(NonRhotic, new(StringComparer.Ordinal)
         {
             ["over"] = "ˈoʊvə",

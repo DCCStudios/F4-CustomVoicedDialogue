@@ -414,6 +414,9 @@ public class ProviderRequestTests
     [InlineData("boston", "harbor", "ˈhɑːbə")]
     [InlineData("deep-south", "outside", "ˈæʊtˈsɑːd")]     // CMUdict marks both syllables primary
     [InlineData("southern", "time", "tɑːm")]               // matches the hand entry
+    [InlineData("southern-grimes", "right", "ɹɑːt")]       // PRICE flattens everywhere
+    [InlineData("southern-grimes", "brother", "ˈbɹʌðə")]   // unstressed coda r drops
+    [InlineData("southern-grimes", "walkers", "ˈwɔːkəz")]
     [InlineData("russian", "everything", "ˈɛvriːˌsɪŋ")]    // th → s
     [InlineData("german", "javelin", "ˈtʃɛvələn")]         // dʒ → tʃ, æ → ɛ
     [InlineData("spanish-mexican", "strange", "esˈtɾeɪndʒ")] // tapped cluster r
@@ -469,6 +472,15 @@ public class ProviderRequestTests
         // Southern stays milder than Deep South on the same word.
         Assert.Null(AccentPhonology.Derive(Accents.Get("southern"), "right"));
         Assert.Equal("ɹɑːt", AccentPhonology.Derive(Accents.Get("deep-south"), "right"));
+        // Rick Grimes: stressed syllables keep their r, and — per the
+        // linguists — NO pen-pin merger (general Southern does merge).
+        Assert.Null(AccentPhonology.Derive(Accents.Get("southern-grimes"), "hard"));
+        Assert.Null(AccentPhonology.Derive(Accents.Get("southern-grimes"), "pen"));
+        Assert.Null(AccentPhonology.Derive(Accents.Get("southern-grimes"), "ten"));
+        Assert.Equal("pɪn", AccentPhonology.Derive(Accents.Get("southern"), "pen"));
+        // And the Coral phenomenon rides the hand lexicon.
+        Assert.Contains("/ˈkɔɹəl/", AccentLexicon.Apply(
+            Accents.Get("southern-grimes"), "Carl! Stay back, Carl!", "k", 0));
     }
 
     [Fact]

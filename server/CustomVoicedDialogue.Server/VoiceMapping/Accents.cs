@@ -28,6 +28,13 @@ public static class Accents
             "a thick Deep South drawl: heavy, unhurried, vowels leaned on " +
             "hard and words flowing into each other."),
 
+        new("southern-grimes", "American — Southern (Rick Grimes)",
+            "a restrained rural Georgia drawl in the style of Rick " +
+            "Grimes: deep chest resonance with a gravelly texture and " +
+            "mild vocal fry, full-mouth articulation with hard consonants " +
+            "driven forward, and quiet controlled authority that drops " +
+            "into exhausted or menacing cadences rather than rising."),
+
         new("boston", "American — Boston / New England",
             "a blunt, quick, working-class New England edge."),
 

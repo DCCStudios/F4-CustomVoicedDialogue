@@ -61,6 +61,20 @@ internal static class AccentPhonology
                 PenPinMerger(p);
                 IngToIn(p);
                 break;
+            case "southern-grimes":
+                // Andrew Lincoln's Rick Grimes: restrained, never a
+                // caricature — the analyses stress subtlety over broad
+                // Southern vowel changes, so ONLY the well-attested
+                // features: PRICE flattens everywhere ("that's raht",
+                // "mah"), -ing drops its g, and the r's stay American
+                // except the unstressed codas that audibly soften
+                // (brother → brʌðə, walkers → wɔːkəz).  Deliberately NO
+                // pen-pin merger and NO MOUTH fronting — linguists note
+                // both absences as tells of the portrayal.
+                Vowel(p, "aɪ", "ɑː");
+                UnstressedDerhoting(p);
+                IngToIn(p);
+                break;
             case "boston":
                 NonRhotic(p);
                 break;
@@ -506,6 +520,21 @@ internal static class AccentPhonology
             p.Count > 0 && p[0].Sound == "w")
         {
             p[0] = p[0] with { Sound = "ʍ" };
+        }
+    }
+
+    /// <summary>The Rick Grimes half-rhoticity: r drops from a coda only
+    /// after an unstressed vowel (brother → brʌðə, walkers → wɔːkəz);
+    /// stressed syllables keep their r (hard, right, run).</summary>
+    private static void UnstressedDerhoting(List<Phone> p)
+    {
+        for (var i = p.Count - 1; i >= 0; i--)
+        {
+            if (p[i].Sound == "ɹ" && (i + 1 >= p.Count || !p[i + 1].IsVowel) &&
+                i > 0 && p[i - 1] is { IsVowel: true, Stress: 0 })
+            {
+                p.RemoveAt(i);
+            }
         }
     }
 
