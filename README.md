@@ -60,9 +60,10 @@ themselves.
 - Automatic, deterministic voice assignment per NPC voice type, with a
   per-voice-type override grid. The same NPC keeps the same voice across
   sessions.
-- **Accents** — 17 of them, applied through hand-written IPA pronunciation
-  lexicons so the voice actually speaks with the accent, with a slider for
-  how much the accent slips (see [Accents](#accents)).
+- **Accents** — 17 of them, applied as exact IPA pronunciations by a
+  phonological rule engine (any English word) plus hand-written lexicons
+  for the irregulars, so the voice actually speaks with the accent, with a
+  slider for how much the accent slips (see [Accents](#accents)).
 
 **Timing and playback**
 - Dialogue holds for the length of the generated line, then advances — no
@@ -322,15 +323,28 @@ for your character and per voice type in the **NPC Voices** grid. The
 default, **American (neutral)**, adds nothing at all and leaves lines
 exactly as written.
 
-Accents work through a **hand-written pronunciation lexicon**: for each
-accent, the words that actually carry it are mapped to exact IPA
-pronunciations, substituted into the line before synthesis — "Put the gun
-down" becomes "Put the gun /duːn/" for Scottish — using Inworld's inline
-custom-pronunciation support. The substitution happens in code,
-deterministically, so the accent lands on every line regardless of which
-tagging model is configured. (Simply naming an accent in a steering tag
-tends to produce a caricature or nothing at all, and having the tagging
-model respell lines proved unreliable — small models mangle spellings.)
+Accents substitute exact IPA pronunciations into the line before
+synthesis — "Put the gun down" becomes "Put the gun /duːn/" for Scottish —
+using Inworld's inline custom-pronunciation support. Two layers produce
+the IPA, both deterministic and entirely in code:
+
+1. **A phonological rule engine** covers every English word: the CMU
+   Pronouncing Dictionary (134k words) supplies the General American
+   phonemes, and each accent applies its real sound laws — non-rhotic
+   accents delete r unless a vowel follows, Cockney shifts MOUTH to a
+   long flat ah and fronts th to f, Russian devoices final consonants
+   and turns w to v. So Cockney "walking" → /ˈwɔːkɪn/ and "thinking" →
+   /ˈfɪŋkɪn/ without anyone having listed those words.
+2. **A hand-written override lexicon** carries the irregulars rules
+   cannot derive (Cockney "something" → /ˈsʌmfɪŋk/, Spanish "school" →
+   /esˈkul/) and the accent-defining function words (RP "was" → /wɒz/,
+   German "the" → /zə/).
+
+Words the accent genuinely does not change stay plain text, and ordinary
+function words are left to natural sentence rhythm. (Simply naming an
+accent in a steering tag tends to produce a caricature or nothing at all,
+and having the tagging model respell lines proved unreliable — small
+models mangle spellings.)
 
 | | |
 |---|---|
@@ -544,6 +558,10 @@ server from something other than the plugin.
   [HerikaServer / CHIM](https://github.com/abeiro/HerikaServer) (MIT).
 - [CommonLibF4](https://github.com/Dear-Modding-FO4/commonlibf4) by Ryan
   McKenzie, the Dear-Modding team, and contributors.
+- The [CMU Pronouncing Dictionary](https://github.com/cmusphinx/cmudict)
+  (Carnegie Mellon University, BSD license — see
+  `server/CustomVoicedDialogue.Server/Resources/cmudict-LICENSE.txt`)
+  supplies the base pronunciations the accent rules transform.
 - Reference material: **Silent Protagonist** (player voice-play hook
   points), **AudioUtil** by crajjjj (loose-file playback and envelope
   lipsync patterns), **FPGunplayOverhaul** (`GetSoundHandleByFile` recipe),

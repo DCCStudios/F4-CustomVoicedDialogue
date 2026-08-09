@@ -20,4 +20,10 @@
     <InternalsVisibleTo Include="CustomVoicedDialogue.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- CMU Pronouncing Dictionary (BSD-licensed, see Resources/cmudict-LICENSE.txt):
+         the General American base pronunciations the accent rules transform. -->
+    <EmbeddedResource Include="Resources\cmudict.dict.gz" />
+  </ItemGroup>
+
 </Project>

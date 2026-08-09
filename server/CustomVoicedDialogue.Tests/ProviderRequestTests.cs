@@ -389,6 +389,69 @@ public class ProviderRequestTests
             AccentLexicon.Entries(Accents.Get("deep-south")).Count());
     }
 
+    [Theory]
+    // The rule engine against ground truth: words that were never
+    // hand-written must come out with the accent's signature phonology.
+    [InlineData("british-cockney", "going", "ˈɡəʊɪn")]     // GOAT + -in
+    [InlineData("british-cockney", "walking", "ˈwɔːkɪn")]
+    [InlineData("british-cockney", "thinking", "ˈfɪŋkɪn")] // th-fronting
+    [InlineData("british-cockney", "hurry", "ˈɜriː")]      // h-drop
+    [InlineData("british-rp", "start", "stɑːt")]           // START keeps ɑː
+    [InlineData("british-rp", "forgot", "fəˈɡɒt")]         // non-rhotic + LOT
+    [InlineData("british-rp", "father", "ˈfɑːðə")]         // PALM exception
+    [InlineData("british-rp", "chances", "ˈtʃɑːnsəz")]     // BATH
+    [InlineData("scottish", "found", "fuːnd")]             // MOUTH, rhotic kept
+    [InlineData("scottish", "raider", "ˈreːdər")]
+    [InlineData("boston", "harbor", "ˈhɑːbə")]
+    [InlineData("deep-south", "outside", "ˈæʊtˈsɑːd")]     // CMUdict marks both syllables primary
+    [InlineData("southern", "time", "tɑːm")]               // matches the hand entry
+    [InlineData("russian", "everything", "ˈɛvriːˌsɪŋ")]    // th → s
+    [InlineData("german", "javelin", "ˈtʃɛvələn")]         // dʒ → tʃ, æ → ɛ
+    [InlineData("spanish-mexican", "strange", "esˈtreɪndʒ")]
+    public void Accent_PhonologyDerivesUnlistedWords(string accentId, string word, string expected)
+    {
+        Assert.Equal(expected, AccentPhonology.Derive(Accents.Get(accentId), word));
+    }
+
+    [Fact]
+    public void Accent_PhonologyKnowsItsLimits()
+    {
+        var cockney = Accents.Get("british-cockney");
+        // Unchanged by the rules: stays plain text.
+        Assert.Null(AccentPhonology.Derive(cockney, "put"));
+        // BATH must not overreach: fricative-before-vowel and nd stay flat.
+        Assert.Null(AccentPhonology.Derive(Accents.Get("british-rp"), "classic"));
+        Assert.Null(AccentPhonology.Derive(Accents.Get("british-rp"), "hand"));
+        // Function words are never derived (their citation forms would
+        // fight sentence rhythm); the hand lexicon overrides them instead.
+        Assert.Null(AccentPhonology.Derive(cockney, "the"));
+        Assert.Null(AccentPhonology.Derive(Accents.Get("british-rp"), "of"));
+        // Heteronyms cannot be disambiguated without part of speech.
+        Assert.Null(AccentPhonology.Derive(cockney, "read"));
+        // Words the dictionary does not know stay plain.
+        Assert.Null(AccentPhonology.Derive(cockney, "stimpak"));
+
+        // Where a rule fully covers a hand-written word the two layers
+        // must agree — the overrides only exist for the irregulars.
+        Assert.Equal("daːn", AccentPhonology.Derive(Accents.Get("british-cockney"), "down"));
+        Assert.Equal("duːn", AccentPhonology.Derive(Accents.Get("scottish"), "down"));
+        Assert.Equal("wɔːn", AccentPhonology.Derive(Accents.Get("british-rp"), "worn"));
+
+        // Southern stays milder than Deep South on the same word.
+        Assert.Null(AccentPhonology.Derive(Accents.Get("southern"), "right"));
+        Assert.Equal("rɑːt", AccentPhonology.Derive(Accents.Get("deep-south"), "right"));
+    }
+
+    [Fact]
+    public void Accent_DerivedWordsFlowThroughApply()
+    {
+        var cockney = Accents.Get("british-cockney");
+        // "going" and "walking" have no hand entries — the rule engine
+        // must carry them; "put" stays plain.
+        var applied = AccentLexicon.Apply(cockney, "Put it down before going out walking.", "k", 0);
+        Assert.Equal("Put it /daːn/ /bɪˈfɔː/ /ˈɡəʊɪn/ /aːt/ /ˈwɔːkɪn/.", applied);
+    }
+
     [Fact]
     public async Task Accent_TaggerKeepsWordsAndLexiconAddsIpa()
     {
@@ -413,8 +476,8 @@ public class ProviderRequestTests
         Assert.StartsWith("[irritated, with a quick Cockney edge]", tagged);
         Assert.Contains("/daːn/", tagged);
         Assert.Contains("/əˈwaɪ/", tagged);
-        // The words between the IPA stay the real words.
-        Assert.Contains("not going to ask you again", tagged);
+        // Words neither hand-listed nor changed by the rules stay real words.
+        Assert.Contains("to ask you again", tagged);
     }
 
     [Fact]

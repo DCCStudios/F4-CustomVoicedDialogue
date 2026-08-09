@@ -42,7 +42,16 @@ public static class AccentLexicon
             {
                 return match.Value;
             }
-            if (!lexicon.TryGetValue(match.Value.ToLowerInvariant(), out var ipa))
+            // The hand-written entry wins (it carries the irregulars);
+            // any other word is derived from its dictionary pronunciation
+            // through the accent's phonological rules, staying plain when
+            // the rules change nothing.
+            var word = match.Value.ToLowerInvariant();
+            if (!lexicon.TryGetValue(word, out string? ipa))
+            {
+                ipa = AccentPhonology.Derive(accent, word);
+            }
+            if (ipa is null)
             {
                 return match.Value;
             }
