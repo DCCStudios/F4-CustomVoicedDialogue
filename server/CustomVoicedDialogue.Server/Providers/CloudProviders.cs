@@ -181,9 +181,9 @@ public sealed class InworldProvider : ITtsProvider
         "non-verbal tags such as [sigh]; keep every one of them where they are. " +
         "Pacing matters: default to a natural conversational tempo, the way someone actually " +
         "talks mid-conversation. Steer with feeling, attitude, or volume rather than with speed. " +
-        "The words slowly, drawn-out, deliberate, measured, relaxed, halting, hesitant, weary, " +
-        "resigned, solemn, sombre, and trailing off all stretch the delivery: do not use them, or " +
-        "synonyms of them, for ordinary dialogue — greetings, questions, directions, trade, banter, " +
+        "The words slowly, drawn-out, deliberate, measured, halting, hesitant, weary, resigned, " +
+        "solemn, sombre, and trailing off all stretch the delivery: do not use them, or synonyms " +
+        "of them, for ordinary dialogue — greetings, questions, directions, trade, banter, " +
         "mild annoyance, or simple tiredness. Reserve them for the rare line whose impact truly " +
         "depends on it: grief, dread, a revelation landing, or a threat meant to hang in the " +
         "air. When in doubt, choose the brisker reading. " +
@@ -236,9 +236,6 @@ public sealed class InworldProvider : ITtsProvider
     public async Task<AutoTagResult> AutoTagDetailedAsync(string text, string voiceType, bool isPlayer, ProviderSettings settings, CancellationToken cancellationToken, string voicePath = "", VoiceMapping.Accent? accent = null, int accentImperfection = 0)
     {
         var result = await TagCoreAsync(text, voiceType, isPlayer, settings, cancellationToken, voicePath, accent, accentImperfection);
-        // The prompt bans delivery-stretching words, but a prompt is
-        // advisory — this strip is not.
-        result = result with { Text = ScrubInstruction(result.Text) };
         // Accent pronunciation is applied here, in code, from the curated
         // IPA lexicon — deterministic, model-independent, and verified to
         // synthesize correctly on inworld-tts-2 (which reads /IPA/ inline).
@@ -407,11 +404,12 @@ public sealed class InworldProvider : ITtsProvider
         }
     }
 
-    /// <summary>Removes the delivery-stretching adjectives that must never
-    /// reach synthesis from a line's leading steering instruction, tidying
-    /// the leftover punctuation.  An instruction emptied entirely is
-    /// dropped.</summary>
-    internal static string ScrubInstruction(string tagged)
+    /// <summary>Removes the delivery-stretching adjectives from a line's
+    /// leading steering instruction, tidying the leftover punctuation; an
+    /// instruction emptied entirely is dropped.  Used by the app's accent
+    /// preview so its sample takes play at conversational tempo — real
+    /// dialogue keeps the tagger's own judgement.</summary>
+    public static string ScrubInstruction(string tagged)
     {
         return System.Text.RegularExpressions.Regex.Replace(tagged, @"^\s*\[[^\]]+\]", match =>
         {

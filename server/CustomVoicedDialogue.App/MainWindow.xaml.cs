@@ -496,7 +496,9 @@ public partial class MainWindow : Window
                     sample, "PlayerVoiceMale01", true, settings, CancellationToken.None,
                     $"accent-preview/{accent.Id}/{_testTakeCounter++}",
                     accent, imperfection);
-                line = tagged.Text;
+                // Preview-only: keep the sample takes at conversational
+                // tempo so the accent is what you hear, not the pacing.
+                line = InworldProvider.ScrubInstruction(tagged.Text);
                 if (tagged.RouterError is not null)
                 {
                     PlayerAccentResult.Text = $"✗ tagging failed: {tagged.RouterError}";
