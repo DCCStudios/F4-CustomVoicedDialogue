@@ -427,7 +427,7 @@ public class ProviderRequestTests
     [InlineData("southern-grimes", "right", "ɹɐɪt")]       // PRICE keeps a trace of its glide
     [InlineData("southern-grimes", "night", "nɐɪt")]       // "nigh-t": not "naht", not "naight"
     [InlineData("southern-grimes", "brother", "ˈbɹʌðə")]   // unstressed coda r drops
-    [InlineData("southern-grimes", "walkers", "ˈwɔːːlkəz")] // coda r drops, l restored, vowel held
+    [InlineData("southern-grimes", "walkers", "ˈwɔːlkəz")]  // coda r drops, l restored, vowel unheld
     [InlineData("russian", "everything", "ˈɛvriːˌsɪŋ")]    // th → s
     [InlineData("german", "javelin", "ˈtʃɛvələn")]         // dʒ → tʃ, æ → ɛ
     [InlineData("spanish-mexican", "strange", "esˈtɾeɪndʒ")] // tapped cluster r
@@ -511,8 +511,8 @@ public class ProviderRequestTests
         Assert.DoesNotContain("ɐɪː", AccentPhonology.Derive(Accents.Get("southern-grimes"), "right") ?? "");
         // The historical l General American drops in walk/talk-family
         // words is restored — a bare held vowel into k reads as "wark".
-        Assert.Equal("ˈtɔːːlkɪn", AccentPhonology.Derive(Accents.Get("southern-grimes"), "talking"));
-        Assert.Equal("tʃɔːːlk", AccentPhonology.Derive(Accents.Get("southern-grimes"), "chalk"));
+        Assert.Equal("ˈtɔːlkɪn", AccentPhonology.Derive(Accents.Get("southern-grimes"), "talking"));
+        Assert.Equal("tʃɔːlk", AccentPhonology.Derive(Accents.Get("southern-grimes"), "chalk"));
         // Never fires on a word that never had the letter.
         Assert.Equal("hɔːːk", AccentPhonology.Derive(Accents.Get("southern-grimes"), "hawk"));
     }

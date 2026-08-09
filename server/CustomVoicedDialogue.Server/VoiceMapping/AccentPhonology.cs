@@ -587,7 +587,15 @@ internal static class AccentPhonology
     {
         for (var i = 0; i < p.Count; i++)
         {
-            if (p[i].IsVowel && p[i].Sound.EndsWith('ː'))
+            // A vowel immediately followed by l — always the restored
+            // silent l from RestoreSilentL — is left at its natural
+            // length.  Spectrogram comparison showed the vowel colour is
+            // unaffected by holding, but the combination of an unusual
+            // extra-long vowel with a consonant cluster right after it
+            // is the one pattern behind the "warkers"/"whirl-kers"
+            // mishearings, so the two are kept apart.
+            if (p[i].IsVowel && p[i].Sound.EndsWith('ː') &&
+                !(i + 1 < p.Count && p[i + 1].Sound == "l"))
             {
                 p[i] = p[i] with { Sound = p[i].Sound + "ː" };
             }
