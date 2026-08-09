@@ -367,7 +367,7 @@ public class ProviderRequestTests
         // A sample that touches at least one lexicon word of every accent.
         const string sample = "I think my friend will take the house down that road, but there's nothing better going now, right?";
         var word = new System.Text.RegularExpressions.Regex(@"^[a-z']+$");
-        var ipa = new System.Text.RegularExpressions.Regex(@"^[a-zæɑɒɔəɛɜɪʊʌʉɐŋθðʃʒɡɹɾʍʔːˈˌ]+$");
+        var ipa = new System.Text.RegularExpressions.Regex(@"^[a-zæɑɒɔəɛɜɪʊʌʉɐɵŋθðʃʒɡɹɾʍʔːˈˌ]+$");
 
         Assert.False(AccentLexicon.Has(Accents.Get(null)));
         Assert.All(Accents.All.Skip(1), accent =>
@@ -418,13 +418,16 @@ public class ProviderRequestTests
     [InlineData("german", "javelin", "ˈtʃɛvələn")]         // dʒ → tʃ, æ → ɛ
     [InlineData("spanish-mexican", "strange", "esˈtɾeɪndʒ")] // tapped cluster r
     [InlineData("russian", "rifle", "ˈraɪfəl")]            // trilled r
-    [InlineData("australian", "party", "ˈpɑːɾiː")]         // non-rhotic + flapped t
-    [InlineData("australian", "getting", "ˈɡeɾɪn")]        // DRESS raised, flap, -in
-    [InlineData("australian", "caught", "koːt")]           // THOUGHT raised
+    [InlineData("australian", "party", "ˈpaːɾiː")]         // front START + flapped t
+    [InlineData("australian", "getting", "ˈɡɛɾɪn")]        // flap + -in, DRESS stays ɛ
+    [InlineData("australian", "sorry", "ˈsɒɹiː")]          // LOT rounds
+    [InlineData("australian", "there's", "ðɛːz")]          // SQUARE monophthong by rule
+    [InlineData("australian", "start", "staːʔ")]           // the reference page's staːʔ
+    [InlineData("australian", "route", "ɹʉːʔ")]            // root, on the fronted GOOSE
     [InlineData("australian", "go", "ɡəʉ")]                // GOAT centres onto fronted GOOSE
     [InlineData("australian", "school", "skʉːl")]          // GOOSE fronts
     [InlineData("australian", "gun", "ɡɐn")]               // STRUT central
-    [InlineData("australian", "past", "pɑːst")]            // fricative BATH
+    [InlineData("australian", "past", "paːst")]            // fricative BATH, front a
     public void Accent_PhonologyDerivesUnlistedWords(string accentId, string word, string expected)
     {
         Assert.Equal(expected, AccentPhonology.Derive(Accents.Get(accentId), word));

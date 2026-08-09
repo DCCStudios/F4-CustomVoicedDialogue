@@ -127,24 +127,30 @@ internal static class AccentPhonology
                 RomanceR(p);
                 break;
             case "australian":
-                // General Australian, per Cox & Evans' descriptions: the
-                // diphthong chain shift (PRICE backs, FACE and MOUTH
-                // front-open, GOAT centres onto the fronted GOOSE),
-                // THOUGHT/NORTH raised to a high long o, DRESS raised,
-                // STRUT central, BATH broad before fricatives only
-                // (past → ɑː, but chance stays flat, unlike RP), and
-                // American-style t-flapping (better → beɾə).
-                Vowel(p, "aɪ", "ɑɪ");
+                // General Australian, per Cox & Evans and the KT Speech
+                // accent breakdown: the diphthong chain shift (PRICE
+                // starts rounded — roight; FACE opens; MOUTH ends on the
+                // central rounded ɵ; GOAT centres onto the fronted
+                // GOOSE), LOT rounds (sorry → sɒɹiː), START/PALM and the
+                // fricative-only broad BATH all land on a FRONT long a
+                // (start → staːʔ, past → paːst — chance stays flat,
+                // unlike RP), SQUARE is a long monophthong (there's →
+                // ðɛːz), STRUT is central, t flaps between vowels
+                // (better → bɛɾə) and glottals word-finally after a
+                // vowel, exactly as transcribed on the reference page.
+                Vowel(p, "aɪ", "ɒɪ");
                 Vowel(p, "eɪ", "æɪ");
-                Vowel(p, "aʊ", "æɔ");
+                Vowel(p, "aʊ", "æɵ");
                 Vowel(p, "oʊ", "əʉ");
                 Vowel(p, "uː", "ʉː");
+                LotRounding(word, p);
                 FricativeBath(p);
                 NonRhotic(p);
-                Vowel(p, "ɔː", "oː");
-                Vowel(p, "ɛ", "e");
+                Vowel(p, "ɑː", "aː");
+                Vowel(p, "ɛə", "ɛː");
                 Vowel(p, "ʌ", "ɐ");
                 FlapT(p);
+                FinalGlottalT(p);
                 IngToIn(p);
                 break;
             case "russian":
@@ -500,6 +506,17 @@ internal static class AccentPhonology
             p.Count > 0 && p[0].Sound == "w")
         {
             p[0] = p[0] with { Sound = "ʍ" };
+        }
+    }
+
+    /// <summary>Australian final-plosive glottaling: a word-final t after
+    /// a vowel is a glottal catch (start → staːʔ, right → ɹɒɪʔ), while
+    /// intervocalic t stays a flap.</summary>
+    private static void FinalGlottalT(List<Phone> p)
+    {
+        if (p.Count >= 2 && p[^1].Sound == "t" && p[^2].IsVowel)
+        {
+            p[^1] = p[^1] with { Sound = "ʔ" };
         }
     }
 

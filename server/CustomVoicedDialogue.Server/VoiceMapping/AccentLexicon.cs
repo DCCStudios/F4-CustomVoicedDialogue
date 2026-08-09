@@ -361,31 +361,34 @@ public static class AccentLexicon
 
         ["australian"] = Merge(NonRhotic, new(StringComparer.Ordinal)
         {
-            ["again"] = "əˈɡæɪn", ["been"] = "biːn", ["my"] = "mɑɪ",
-            ["new"] = "njuː", ["news"] = "njuːz", ["nuclear"] = "ˈnjuːklɪə",
-            ["tune"] = "tʃuːn", ["due"] = "dʒuː",
+            ["again"] = "əˈɡæɪn", ["been"] = "biːn", ["my"] = "mɒɪ",
+            // Yod words ride the fronted GOOSE.
+            ["new"] = "njʉː", ["news"] = "njʉːz", ["nuclear"] = "ˈnjʉːklɪə",
+            ["tune"] = "tʃʉːn", ["due"] = "dʒʉː",
             ["day"] = "dæɪ", ["way"] = "wæɪ", ["say"] = "sæɪ", ["take"] = "tæɪk",
             ["make"] = "mæɪk", ["name"] = "næɪm", ["place"] = "plæɪs",
-            ["late"] = "læɪt", ["mate"] = "mæɪt", ["wait"] = "wæɪt",
+            ["late"] = "læɪʔ", ["mate"] = "mæɪʔ", ["wait"] = "wæɪʔ",
             ["g'day"] = "ɡəˈdæɪ",
-            ["time"] = "tɑɪm", ["like"] = "lɑɪk", ["right"] = "rɑɪt", ["night"] = "nɑɪt",
-            // MOUTH lands on æɔ, per Cox's measurements.
-            ["down"] = "dæɔn", ["now"] = "næɔ", ["out"] = "æɔt",
-            ["about"] = "əˈbæɔt", ["town"] = "tæɔn", ["how"] = "hæɔ", ["house"] = "hæɔs",
+            // PRICE starts rounded, and a final t after the vowel is a
+            // glottal catch, per the reference transcriptions.
+            ["time"] = "tɒɪm", ["like"] = "lɒɪk", ["right"] = "rɒɪʔ", ["night"] = "nɒɪʔ",
+            // MOUTH ends on the short central rounded ɵ.
+            ["down"] = "dæɵn", ["now"] = "næɵ", ["out"] = "æɵʔ",
+            ["about"] = "əˈbæɵʔ", ["town"] = "tæɵn", ["how"] = "hæɵ", ["house"] = "hæɵs",
             // GOAT function words the stoplist hides from the rules.
             ["no"] = "nəʉ", ["so"] = "səʉ",
-            // SQUARE is a long monophthong (there → theeh).
-            ["there"] = "ðeː", ["where"] = "weː",
-            // NORTH/FORCE ride the raised long o, replacing the shared
-            // non-rhotic ɔː forms.
-            ["more"] = "moː", ["door"] = "doː", ["four"] = "foː",
-            ["your"] = "joː", ["sure"] = "ʃoː", ["worn"] = "woːn",
-            ["born"] = "boːn", ["corner"] = "ˈkoːnə",
-            // Flapped t and raised DRESS in the everyday words.
-            ["water"] = "ˈwoːɾə", ["better"] = "ˈbeɾə", ["never"] = "ˈnevə",
-            // BATH: broad before fricatives, and can't is the lexical
+            // SQUARE is a long open monophthong (there's → ðɛːz comes
+            // from the rule; these two are stoplisted).
+            ["there"] = "ðɛː", ["where"] = "wɛː",
+            ["sure"] = "ʃɔː",
+            // Flapped t in the everyday words.
+            ["water"] = "ˈwɔːɾə", ["better"] = "ˈbɛɾə",
+            // START/BATH sit on the FRONT long a — replacing the shared
+            // non-rhotic back-ɑː forms — and can't is the lexical
             // exception that goes broad despite its nasal.
-            ["after"] = "ˈɑːftə", ["can't"] = "kɑːnt",
+            ["after"] = "ˈaːftə", ["can't"] = "kaːnt",
+            ["start"] = "staːʔ", ["car"] = "kaː", ["far"] = "faː", ["are"] = "aː",
+            ["hard"] = "haːd", ["part"] = "paːʔ", ["heart"] = "haːʔ", ["park"] = "paːk",
         }),
 
         ["russian"] = new(StringComparer.Ordinal)
