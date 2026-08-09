@@ -238,7 +238,11 @@ public static class AccentLexicon
             // "ah" — "yeeAah" — rather than the quick standard glide.
             // The extra length marks match HoldLongVowels' general rule.
             ["yeah"] = "jiːːˈæːːə",
-            // The "Coral" phenomenon: the -ar-l breaks into two syllables.
+            // The "Coral" phenomenon: Carl gets its own special
+            // pronunciation rather than the general stressed-vowel hold
+            // every other word gets (see HoldLongVowels) — the -ar-l
+            // breaks into two syllables, the way the portrayal's most
+            // famous line actually sounds.
             ["carl"] = "ˈkɔrəl", ["carl's"] = "ˈkɔrəlz",
         },
 

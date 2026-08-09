@@ -546,16 +546,21 @@ internal static class AccentPhonology
     /// <summary>Rick Grimes' full-mouth articulation: every already-long
     /// vowel (FLEECE, GOOSE, START, THOUGHT, NURSE…) gets an extra length
     /// mark, sustaining it as a pure held sound instead of letting it
-    /// glide toward the next one (sweet → swiːːt).  Diphthongs are left
-    /// alone — a glide is what they are — this only extends vowels that
-    /// were already a single sustained sound.</summary>
+    /// glide toward the next one (sweet → swiːːt).  The syllable actually
+    /// carrying the word's stress gets a second extra mark on top of
+    /// that — the driven-forward emphasis that lands specifically on the
+    /// stressed syllable rather than spreading evenly across the word
+    /// (walkers → wɔːːːkəz, "wAALL-kers"; Carl → kɑːːːɹl, "CAArl").
+    /// Diphthongs are left alone — a glide is what they are — this only
+    /// extends vowels that were already a single sustained sound.</summary>
     private static void HoldLongVowels(List<Phone> p)
     {
         for (var i = 0; i < p.Count; i++)
         {
             if (p[i].IsVowel && p[i].Sound.EndsWith('ː'))
             {
-                p[i] = p[i] with { Sound = p[i].Sound + "ː" };
+                var extra = p[i].Stress == 1 ? "ːː" : "ː";
+                p[i] = p[i] with { Sound = p[i].Sound + extra };
             }
         }
     }
