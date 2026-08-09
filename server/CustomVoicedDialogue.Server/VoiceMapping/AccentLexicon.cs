@@ -65,8 +65,45 @@ public static class AccentLexicon
             return "/" + ipa + "/";
         });
         return SoftenHeldVowelsInMultiWordSpans(
-            BridgeSpans(accent, MergeAdjacent.Replace(substituted, " ")));
+            AbsorbClauseLead(accent, BridgeSpans(accent, MergeAdjacent.Replace(substituted, " "))));
     }
+
+    // One or two plain words wedged between punctuation and a span.
+    private static readonly Regex ClauseLeadGap = new(
+        @"(?<=[,.!?;:—] )(?<gap>[A-Za-z']+(?: [A-Za-z']+)?) /(?<b>[^/]+)/", RegexOptions.Compiled);
+
+    /// <summary>Pulls a clause-leading plain word into the span that
+    /// follows it.  Measured on "Walkers, all over Cell block C." (6
+    /// identical calls per variant): with "all" standing plain between
+    /// the comma and the span, an extra internal pause appeared in 5 of
+    /// 6 calls; with the span starting right at the comma — "all"
+    /// absorbed — 2 of 6, at a lower total.  A lone word pinched between
+    /// punctuation and a span is the same boundary hazard the
+    /// between-spans bridge removes, so it gets the same cure.</summary>
+    private static string AbsorbClauseLead(Accent accent, string text) =>
+        ClauseLeadGap.Replace(text, match =>
+        {
+            // A span that is one held word ("That's a /swiːːt/ deal")
+            // stays untouched: absorbing would make it multi-word, which
+            // strips the hold — and at clause edges the full-mouth hold
+            // is the feature, so it outranks the phrasing polish here.
+            var span = match.Groups["b"].Value;
+            if (span.Contains("ːː") && !span.Contains(' '))
+            {
+                return match.Value;
+            }
+            var absorbed = new List<string>();
+            foreach (var word in match.Groups["gap"].Value.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var ipa = AccentPhonology.Pronunciation(accent, word.ToLowerInvariant());
+                if (ipa is null)
+                {
+                    return match.Value;
+                }
+                absorbed.Add(ipa);
+            }
+            return "/" + string.Join(" ", absorbed) + " " + match.Groups["b"].Value + "/";
+        });
 
     private static readonly Regex AnySpan = new(@"/[^/]+/", RegexOptions.Compiled);
 

@@ -344,10 +344,13 @@ public class ProviderRequestTests
         Assert.Equal("Ask /mɐɪ ˈbɹʌðə əˈbaʊt ɪt təˈnɐɪt/.",
             AccentLexicon.Apply(Accents.Get("southern-grimes"), "Ask my brother about it tonight.", "k", 0));
         // Punctuation blocks the bridge — a comma keeps its natural pause.
-        // …and a multi-word span carries no vowel holds (a hold anywhere
+        // …a multi-word span carries no vowel holds (a hold anywhere
         // inside one measured as a consistent extra pause; standalone
-        // held words measured clean).
-        Assert.Equal("/ˈwɔːlkəz/, all /ˈoʊvə sɛl blɑːk siː/.",
+        // held words measured clean), and a clause-leading word between
+        // the comma and the span is absorbed so the span starts at the
+        // punctuation (a lone plain word pinched there measured an extra
+        // pause in 5 of 6 calls).
+        Assert.Equal("/ˈwɔːlkəz/, /ɔːl ˈoʊvə sɛl blɑːk siː/.",
             AccentLexicon.Apply(Accents.Get("southern-grimes"), "Walkers, all over Cell block C.", "k", 0));
         Assert.Equal("/swiːːt/. That's a /swiːːt/ deal.",
             AccentLexicon.Apply(Accents.Get("southern-grimes"), "Sweet. That's a sweet deal.", "k", 0));
