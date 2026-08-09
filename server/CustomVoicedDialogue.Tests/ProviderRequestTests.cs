@@ -457,6 +457,23 @@ public class ProviderRequestTests
     }
 
     [Fact]
+    public void Tagger_StretchingAdjectivesAreScrubbedFromInstructions()
+    {
+        Assert.Equal("[calm, low] Fine.",
+            InworldProvider.ScrubInstruction("[calm and measured, low] Fine."));
+        Assert.Equal("[a warm Southern drawl] Sure thing.",
+            InworldProvider.ScrubInstruction("[a warm relaxed Southern drawl] Sure thing."));
+        Assert.Equal("[quiet] Go.",
+            InworldProvider.ScrubInstruction("[measured, quiet] Go."));
+        // An instruction that was nothing but the banned word disappears.
+        Assert.Equal("Fine.", InworldProvider.ScrubInstruction("[relaxed] Fine."));
+        // Untouched lines pass through, including inline non-verbals.
+        Assert.Equal("[stern] Put it down. [sigh] Now.",
+            InworldProvider.ScrubInstruction("[stern] Put it down. [sigh] Now."));
+        Assert.Equal("No tags here.", InworldProvider.ScrubInstruction("No tags here."));
+    }
+
+    [Fact]
     public async Task Accent_TaggerKeepsWordsAndLexiconAddsIpa()
     {
         var (handler, client) = Mock();

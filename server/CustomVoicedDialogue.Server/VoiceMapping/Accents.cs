@@ -21,8 +21,8 @@ public static class Accents
         new(Default, "American (neutral)", ""),
 
         new("southern", "American — Southern",
-            "a warm, easy Southern drawl: relaxed, friendly, and unhurried, " +
-            "with the stressed vowels gently held."),
+            "a warm, easy Southern drawl: friendly and easy-going, with the " +
+            "stressed vowels gently held."),
 
         new("deep-south", "American — Deep South",
             "a thick Deep South drawl: heavy, unhurried, vowels leaned on " +
