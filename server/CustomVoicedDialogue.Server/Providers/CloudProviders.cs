@@ -174,7 +174,9 @@ public sealed class InworldProvider : ITtsProvider
         "in square brackets placed before the line, written like direction to a voice actor " +
         "(emotion, pacing, volume, pitch, vocal style; under 15 words); " +
         "(2) optional non-verbal tags from [laugh] [breathe] [clear throat] [sigh] [cough] [yawn] " +
-        "inserted inline where the sound occurs. " +
+        "inserted inline where the sound occurs; " +
+        "(3) optionally capitalizing the one word or syllable the delivery stresses (NOT, aGAIN) — " +
+        "at most one per line, only when the line clearly stresses it. " +
         "Real dialogue must keep its spoken words exactly. The line may already contain " +
         "non-verbal tags such as [sigh]; keep every one of them where they are. " +
         "Pacing matters: default to a natural conversational tempo, the way someone actually " +
@@ -203,27 +205,20 @@ public sealed class InworldProvider : ITtsProvider
         "Reply with the finished line only, no explanations.";
 
     /// <summary>Accent direction appended to the tagger's system prompt.
-    /// This is the one case where the spoken words may be altered — but only
-    /// in spelling, so the synthesizer pronounces them with the accent
-    /// instead of merely being told one exists.</summary>
+    /// The model only colours the steering instruction — pronunciation is
+    /// applied afterwards in code from the curated IPA lexicon, which needs
+    /// the standard spellings intact to match, so the words-unchanged rule
+    /// stays fully in force.</summary>
     internal static string AccentPrompt(VoiceMapping.Accent accent, bool slips) =>
-        " ACCENT — this overrides the rule about leaving the words unchanged: perform the line in " +
-        $"{accent.DisplayName}. The sound of it is {accent.Guidance} " +
-        "Respell the words phonetically inside the line itself so the synthesizer actually produces " +
-        "the accent; naming it in the brackets alone does nothing. Respell only how the words that " +
-        "are already there sound — never substitute a different word, add words, drop words, or " +
-        "change the punctuation or meaning. Dialect contractions the accent naturally produces are " +
-        "fine; dialect vocabulary is not. " +
-        VoiceMapping.Accents.RespellingCraft + " " +
+        $" ACCENT: the speaker talks in {accent.DisplayName} — {accent.Guidance} " +
+        "Let your steering instruction carry that accent's attitude, rhythm and melody (a short " +
+        "clause naming the accent is enough). The spoken words themselves must stay spelled exactly " +
+        "as written — never respell them and never use dialect spellings; the pronunciation is " +
+        "applied after you." +
         (slips
-            // Concrete counts, because "keep it light" reads as a nuance a
-            // small model will not act on — it returned the fully accented
-            // line verbatim.
-            ? "On this line the accent slips, the way a real speaker's does: respell ONLY ONE OR TWO " +
-              "words in the accent and leave every other word in ordinary standard spelling."
-            : "Apply it across the WHOLE line: every sentence must visibly carry the accent. If a " +
-              "sentence still reads like ordinary standard English, you have not respelled enough — " +
-              "go back and respell the vowels and consonants in it that the accent changes.");
+            ? " On this line the speaker's accent eases toward standard speech, so keep the accent " +
+              "clause in your instruction mild."
+            : "");
 
     /// <summary>Result of auto-tagging: the (possibly) enriched line, plus
     /// the router failure that forced a rule-based fallback, if any — so
@@ -239,6 +234,23 @@ public sealed class InworldProvider : ITtsProvider
         (await AutoTagDetailedAsync(text, voiceType, isPlayer, settings, cancellationToken, voicePath, accent, accentImperfection)).Text;
 
     public async Task<AutoTagResult> AutoTagDetailedAsync(string text, string voiceType, bool isPlayer, ProviderSettings settings, CancellationToken cancellationToken, string voicePath = "", VoiceMapping.Accent? accent = null, int accentImperfection = 0)
+    {
+        var result = await TagCoreAsync(text, voiceType, isPlayer, settings, cancellationToken, voicePath, accent, accentImperfection);
+        // Accent pronunciation is applied here, in code, from the curated
+        // IPA lexicon — deterministic, model-independent, and verified to
+        // synthesize correctly on inworld-tts-2 (which reads /IPA/ inline).
+        // It runs on every path, including auto-tag off and every tagging
+        // fallback, so an accent can never silently come out plain.
+        if (accent is { IsNeutral: false } && VoiceMapping.AccentLexicon.Has(accent) &&
+            settings.Get("model_id", "inworld-tts-2").Contains("tts-2", StringComparison.OrdinalIgnoreCase))
+        {
+            var lineKey = voicePath.Length > 0 ? voicePath : text;
+            result = result with { Text = VoiceMapping.AccentLexicon.Apply(accent, result.Text, lineKey, accentImperfection) };
+        }
+        return result;
+    }
+
+    private async Task<AutoTagResult> TagCoreAsync(string text, string voiceType, bool isPlayer, ProviderSettings settings, CancellationToken cancellationToken, string voicePath, VoiceMapping.Accent? accent, int accentImperfection)
     {
         if (!settings.GetBool("auto_tag", false) ||
             !settings.Get("model_id", "inworld-tts-2").Contains("tts-2", StringComparison.OrdinalIgnoreCase) ||
@@ -328,18 +340,15 @@ public sealed class InworldProvider : ITtsProvider
                 return new AutoTagResult(EnsureNonVerbalsKept(prepared, tagged), null);
             }
 
-            // An accent respells the words on purpose, so exact equality
-            // cannot be the test.  Accept a line that is still recognisably
-            // the same one; a wholesale rewrite still falls through.  A
-            // respelling the synthesizer cannot sound out is worse than no
-            // accent at all, so that falls back to the plain line too.
-            if (accented && originalWords.Length > 0 && IsPlausibleRespelling(originalWords, taggedWords))
+            // The accent prompt forbids respelling — pronunciation comes
+            // from the IPA lexicon afterwards, and it matches standard
+            // spellings only.  If the model respelled anyway, keep its
+            // steering instruction but restore the real words.
+            if (accented && originalWords.Length > 0)
             {
-                if (LooksUnreadable(taggedWords))
-                {
-                    return new AutoTagResult(RuleBasedTags(text), null);
-                }
-                return new AutoTagResult(EnsureNonVerbalsKept(prepared, tagged), null);
+                var instruction = System.Text.RegularExpressions.Regex.Match(tagged, @"^\s*(\[[^\]]+\])").Groups[1].Value;
+                var restored = string.IsNullOrEmpty(instruction) ? prepared : instruction + " " + prepared;
+                return new AutoTagResult(EnsureNonVerbalsKept(prepared, restored), null);
             }
 
             // Rewritten (or action-only) lines: only legitimate for short
@@ -553,80 +562,6 @@ public sealed class InworldProvider : ITtsProvider
             }
             return "[" + action + "]";
         });
-
-    /// <summary>Letter sequences English orthography does not use, which a
-    /// synthesizer cannot sound out and reads letter by letter instead —
-    /// the "aawy" (for away) failure.  Catching them in code means a weak
-    /// tagging model cannot produce a mangled line no matter what the
-    /// prompt said.</summary>
-    private static readonly System.Text.RegularExpressions.Regex UnreadableSpelling =
-        new(@"aa|uu|yy|[aeiou]{4}|[bcdfghjklmnpqrstvwxz]{4}|w[aeiou]?y\b",
-            System.Text.RegularExpressions.RegexOptions.Compiled);
-
-    /// <summary>True when a respelling contains a sequence the synthesizer
-    /// will stumble over.  Checked per word so an ordinary word is never
-    /// blamed for its neighbour.</summary>
-    internal static bool LooksUnreadable(string spokenWords)
-    {
-        foreach (var word in spokenWords.Split(' ', StringSplitOptions.RemoveEmptyEntries))
-        {
-            // Real English words that legitimately break the rules above.
-            if (word is "away" or "way" or "always" or "anyway" or "runway" or "hallway" or
-                "doorway" or "highway" or "walkway" or "skiing" or "baa")
-            {
-                continue;
-            }
-            if (UnreadableSpelling.IsMatch(word))
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /// <summary>Whether a tagged line is the same line respelled for an
-    /// accent rather than reworded.  "I'm going to check" → "Ah'm gonna
-    /// check" passes; "Let me take a look" does not.  Guards on both the
-    /// word count (nothing added or dropped) and overall similarity.</summary>
-    internal static bool IsPlausibleRespelling(string originalWords, string taggedWords)
-    {
-        if (taggedWords.Length == 0)
-        {
-            return false;
-        }
-        var originalCount = originalWords.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
-        var taggedCount = taggedWords.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
-        // Accents merge words ("going to" → "gonna") and split them, but a
-        // line that grew or shrank a lot has gained or lost content.
-        if (taggedCount < originalCount * 0.7 || taggedCount > originalCount * 1.3 + 1)
-        {
-            return false;
-        }
-        var distance = LevenshteinDistance(originalWords, taggedWords);
-        var similarity = 1.0 - (double)distance / Math.Max(originalWords.Length, taggedWords.Length);
-        return similarity >= 0.55;
-    }
-
-    private static int LevenshteinDistance(string left, string right)
-    {
-        var previous = new int[right.Length + 1];
-        var current = new int[right.Length + 1];
-        for (var j = 0; j <= right.Length; j++)
-        {
-            previous[j] = j;
-        }
-        for (var i = 1; i <= left.Length; i++)
-        {
-            current[0] = i;
-            for (var j = 1; j <= right.Length; j++)
-            {
-                var cost = left[i - 1] == right[j - 1] ? 0 : 1;
-                current[j] = Math.Min(Math.Min(current[j - 1] + 1, previous[j] + 1), previous[j - 1] + cost);
-            }
-            (previous, current) = (current, previous);
-        }
-        return previous[right.Length];
-    }
 
     private static string SpokenWords(string text)
     {

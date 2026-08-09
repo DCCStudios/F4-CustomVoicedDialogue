@@ -313,68 +313,158 @@ public class ProviderRequestTests
     }
 
     [Fact]
-    public void Accent_RespellingIsAcceptedButRewritingIsNot()
+    public void Accent_LexiconAppliesIpaOutsideTags()
     {
-        // A respelling of the same line is what an accent produces.
-        Assert.True(InworldProvider.IsPlausibleRespelling(
-            "i'm going to check the settlement",
-            "ah'm gonna check the settlement"));
-        Assert.True(InworldProvider.IsPlausibleRespelling(
-            "what are you doing out here",
-            "wha' are ye doin' oot here"));
-        Assert.True(InworldProvider.IsPlausibleRespelling(
-            "put the gun down and walk away",
-            "pu' the gun dahn an' walk away"));
+        var cockney = Accents.Get("british-cockney");
+        const string line = "[irritated, firm] I'm not going to ask you again. Put the gun down and walk away.";
+        var applied = AccentLexicon.Apply(cockney, line, "key-1", 0);
 
-        // A different sentence is a rewrite, not an accent.
-        Assert.False(InworldProvider.IsPlausibleRespelling(
-            "i'm going to check the settlement",
-            "let me take a look at the town"));
-        // Content added or dropped is not a respelling either.
-        Assert.False(InworldProvider.IsPlausibleRespelling(
-            "i'm going to check the settlement",
-            "ah'm gonna check the settlement and then ah'll head back to sanctuary right after"));
-        Assert.False(InworldProvider.IsPlausibleRespelling("hello there friend", ""));
-    }
+        // The steering tag passes through whole; lexicon words become IPA
+        // with their punctuation intact.
+        Assert.StartsWith("[irritated, firm]", applied);
+        Assert.Contains("gun /daːn/ and", applied);
+        Assert.EndsWith("walk /əˈwaɪ/.", applied);
+        // Deterministic — the audio cache depends on it.
+        Assert.Equal(applied, AccentLexicon.Apply(cockney, line, "key-1", 0));
 
-    [Theory]
-    // Real tagging-model output captured against the live router, so the
-    // guard is proven against what accents actually produce rather than
-    // against invented examples.
-    [InlineData("ah'm not goin' tah ask yew again put the gun down an' walk away")]      // Southern
-    [InlineData("aym no' gonny ask ye again put th' gun doon an' walk awa'")]            // Scottish
-    [InlineData("ah'm no' gaun tae ask ye again put th' gun doon an' walk awa'")]        // Scottish, heavier
-    [InlineData("i'm nahht goin' to ask yuh again put the gun dahn and wahk away")]      // Boston
-    [InlineData("ai'm not goin' to ask yuu again put the gun daown and walk away")]      // Mexican
-    [InlineData("i'm na' goin' to ask yew again put the gun down an' walk away")]        // Cockney
-    [InlineData("i'm no' gaunna ask ye again put the gun doon and walk awa'")]           // Scottish, slipping
-    public void Accent_RealModelOutputSurvivesTheGuard(string respelled)
-    {
-        const string original = "i'm not going to ask you again put the gun down and walk away";
-        Assert.True(
-            InworldProvider.IsPlausibleRespelling(original, respelled),
-            $"guard rejected genuine accent output: {respelled}");
+        // The same words read differently in a different accent, and
+        // capitalized forms still match.
+        Assert.Contains("/duːn/", AccentLexicon.Apply(Accents.Get("scottish"), "Down! Get down!", "k", 0));
+        // Neutral changes nothing at all.
+        Assert.Equal(line, AccentLexicon.Apply(Accents.Get(null), line, "key-1", 0));
     }
 
     [Fact]
-    public void Accent_UnreadableRespellingsAreRejected()
+    public void Accent_LexiconSlipsEaseTheAccentOff()
     {
-        // The reported failure: "away" respelled as "aawy" is not a spelling
-        // English uses, so the synthesizer reads it letter by letter.
-        Assert.True(InworldProvider.LooksUnreadable("ah'm nawht goin' to ask ya again poot the gun dahn and wahk aawy"));
-        Assert.True(InworldProvider.LooksUnreadable("put it daa-n an' walk awy"));
-        Assert.True(InworldProvider.LooksUnreadable("uuse the duur"));
+        var cockney = Accents.Get("british-cockney");
+        const string line = "Take the house down now, mate — my brother will think something got away.";
 
-        // Genuine accent respellings must survive it.
-        Assert.False(InworldProvider.LooksUnreadable("ah'm not gonna ask ya again put th' gun dahn an' walk awa'"));
-        Assert.False(InworldProvider.LooksUnreadable("ah'm no' gonna ask ye again put th' gun doon an' walk awa'"));
-        Assert.False(InworldProvider.LooksUnreadable("hiz coat wuz wawn and tawn and the bahn had buhnd daown"));
-        Assert.False(InworldProvider.LooksUnreadable("put it dahn and get aht of tahn befoah the sun goez dahn"));
+        // Find a line key that slips at full imperfection and one that
+        // does not (both exist: the slip rate tops out around 60%).
+        var keys = Enumerable.Range(0, 100).Select(i => $"line-{i}").ToList();
+        var slippingKey = keys.First(k => Accents.LineSlips(k, 100));
+        var steadyKey = keys.First(k => !Accents.LineSlips(k, 100));
 
-        // Ordinary English is never flagged, including the words the rules
-        // would otherwise trip over.
-        Assert.False(InworldProvider.LooksUnreadable("put the gun down and walk away"));
-        Assert.False(InworldProvider.LooksUnreadable("it's always been that way anyway"));
+        int IpaCount(string s) => s.Count(c => c == '/') / 2;
+        var full = IpaCount(AccentLexicon.Apply(cockney, line, steadyKey, 100));
+        var slipped = IpaCount(AccentLexicon.Apply(cockney, line, slippingKey, 100));
+
+        // A steady line carries the full accent; a slipping line keeps
+        // some of it but visibly eases off.
+        Assert.True(full >= 7, $"expected a dense accent, got {full} IPA words");
+        Assert.True(slipped < full, $"slipping line ({slipped}) should ease off the steady line ({full})");
+        // At zero imperfection nothing ever slips.
+        Assert.Equal(full, IpaCount(AccentLexicon.Apply(cockney, line, slippingKey, 0)));
+    }
+
+    [Fact]
+    public void Accent_LexiconCatalogueIsWellFormed()
+    {
+        // A sample that touches at least one lexicon word of every accent.
+        const string sample = "I think my friend will take the house down that road, but there's nothing better going now, right?";
+        var word = new System.Text.RegularExpressions.Regex(@"^[a-z']+$");
+        var ipa = new System.Text.RegularExpressions.Regex(@"^[a-zæɑɒɔəɛɜɪʊʌŋθðʃʒɡːˈˌ]+$");
+
+        Assert.False(AccentLexicon.Has(Accents.Get(null)));
+        Assert.All(Accents.All.Skip(1), accent =>
+        {
+            Assert.True(AccentLexicon.Has(accent), $"{accent.Id} has no pronunciation lexicon");
+            foreach (var entry in AccentLexicon.Entries(accent))
+            {
+                Assert.True(word.IsMatch(entry.Key), $"{accent.Id}: bad lexicon key '{entry.Key}'");
+                Assert.True(ipa.IsMatch(entry.Value), $"{accent.Id}: bad IPA '{entry.Value}' for '{entry.Key}'");
+            }
+            Assert.Contains('/', AccentLexicon.Apply(accent, sample, "k", 0));
+        });
+
+        // Rhotic accents must not carry the non-rhotic r-deletions.
+        foreach (var id in new[] { "southern", "deep-south", "scottish", "irish" })
+        {
+            Assert.DoesNotContain(AccentLexicon.Entries(Accents.Get(id)), e => e.Key == "car");
+        }
+        // Southern stays milder than Deep South, per design.
+        Assert.True(
+            AccentLexicon.Entries(Accents.Get("southern")).Count() <
+            AccentLexicon.Entries(Accents.Get("deep-south")).Count());
+    }
+
+    [Fact]
+    public async Task Accent_TaggerKeepsWordsAndLexiconAddsIpa()
+    {
+        var (handler, client) = Mock();
+        // The model behaves: instruction only, words untouched.
+        handler.RespondJson(JsonSerializer.Serialize(new
+        {
+            choices = new[] { new { message = new { content = "[irritated, with a quick Cockney edge] I'm not going to ask you again. Put the gun down and walk away." } } },
+        }));
+        var provider = new InworldProvider(client);
+        var settings = new ProviderSettings(new Dictionary<string, string>
+        {
+            ["API_KEY"] = "cred",
+            ["auto_tag"] = "true",
+        }).WithDefaults(provider);
+
+        var tagged = await provider.AutoTagAsync(
+            "I'm not going to ask you again. Put the gun down and walk away.",
+            "PlayerVoiceMale01", true, settings, CancellationToken.None, "",
+            Accents.Get("british-cockney"), 0);
+
+        Assert.StartsWith("[irritated, with a quick Cockney edge]", tagged);
+        Assert.Contains("/daːn/", tagged);
+        Assert.Contains("/əˈwaɪ/", tagged);
+        // The words between the IPA stay the real words.
+        Assert.Contains("not going to ask you again", tagged);
+    }
+
+    [Fact]
+    public async Task Accent_TaggerRespellingIsRevertedBeforeTheLexicon()
+    {
+        var (handler, client) = Mock();
+        // The model disobeys and respells — those spellings would miss the
+        // lexicon, so the real words must be restored first.
+        handler.RespondJson(JsonSerializer.Serialize(new
+        {
+            choices = new[] { new { message = new { content = "[cheeky] I'm not gonna ask ya again. Put the gun dahn and walk awye." } } },
+        }));
+        var provider = new InworldProvider(client);
+        var settings = new ProviderSettings(new Dictionary<string, string>
+        {
+            ["API_KEY"] = "cred",
+            ["auto_tag"] = "true",
+        }).WithDefaults(provider);
+
+        var tagged = await provider.AutoTagAsync(
+            "I'm not going to ask you again. Put the gun down and walk away.",
+            "PlayerVoiceMale01", true, settings, CancellationToken.None, "",
+            Accents.Get("british-cockney"), 0);
+
+        Assert.StartsWith("[cheeky]", tagged);
+        Assert.DoesNotContain("dahn", tagged);
+        Assert.DoesNotContain("awye", tagged);
+        Assert.Contains("/daːn/", tagged);
+        Assert.Contains("/əˈwaɪ/", tagged);
+    }
+
+    [Fact]
+    public async Task Accent_LexiconWorksWithoutAutoTagging()
+    {
+        var (handler, client) = Mock();
+        var provider = new InworldProvider(client);
+        var settings = new ProviderSettings(new Dictionary<string, string>
+        {
+            ["API_KEY"] = "cred",
+            ["auto_tag"] = "false",
+        }).WithDefaults(provider);
+
+        var tagged = await provider.AutoTagAsync(
+            "Put the gun down and walk away.",
+            "PlayerVoiceMale01", true, settings, CancellationToken.None, "",
+            Accents.Get("british-cockney"), 0);
+
+        // No LLM call at all, yet the accent still lands.
+        Assert.Empty(handler.Requests);
+        Assert.Equal("Put the gun /daːn/ and walk /əˈwaɪ/.", tagged);
     }
 
     [Fact]
@@ -406,11 +496,11 @@ public class ProviderRequestTests
         Assert.True(Accents.All[0].IsNeutral);
         // The neutral default must add no direction at all.
         Assert.Equal("", Accents.All[0].Guidance);
-        // Every other accent needs real phonetic direction to be worth having.
+        // Every other accent needs a real character note for the tagger.
         Assert.All(Accents.All.Skip(1), accent =>
         {
             Assert.False(accent.IsNeutral);
-            Assert.True(accent.Guidance.Length > 60, $"{accent.Id} guidance is too thin");
+            Assert.True(accent.Guidance.Length > 30, $"{accent.Id} guidance is too thin");
         });
         Assert.Equal(Accents.All.Count, Accents.All.Select(a => a.Id).Distinct().Count());
         // Unknown or missing ids fall back to neutral rather than throwing.

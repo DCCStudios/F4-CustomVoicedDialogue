@@ -491,7 +491,7 @@ public partial class MainWindow : Window
             }
             else
             {
-                PlayerAccentResult.Text = "accents need the Inworld provider (inworld-tts-2 with auto-tagging on)";
+                PlayerAccentResult.Text = "accents need the Inworld provider (inworld-tts-2)";
                 return;
             }
 

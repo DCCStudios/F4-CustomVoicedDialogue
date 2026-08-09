@@ -109,7 +109,7 @@
 
                     <TextBlock Text="Accent" FontSize="18" FontWeight="Bold" Margin="0,24,0,8"/>
                     <TextBlock TextWrapping="Wrap" Opacity="0.8"
-                               Text="The line is respelled phonetically before it is synthesized, so the voice actually speaks with the accent rather than just being told about it. Needs Inworld with inworld-tts-2 and auto-tagging on."/>
+                               Text="Signature words are swapped for exact phonetic (IPA) pronunciations before synthesis — that is what the /slashes/ in the preview are — so the voice actually speaks with the accent rather than just being told about it. Needs Inworld with inworld-tts-2."/>
                     <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                         <ComboBox x:Name="PlayerAccentCombo" Width="320" DisplayMemberPath="DisplayName"/>
                         <Button Content="Preview ▶" Click="OnPreviewPlayerAccent"/>

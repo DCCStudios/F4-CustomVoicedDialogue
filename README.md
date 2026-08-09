@@ -60,9 +60,9 @@ themselves.
 - Automatic, deterministic voice assignment per NPC voice type, with a
   per-voice-type override grid. The same NPC keeps the same voice across
   sessions.
-- **Accents** — 17 of them, applied by respelling each line phonetically so
-  the voice actually speaks with the accent, with a slider for how much the
-  accent slips (see [Accents](#accents)).
+- **Accents** — 17 of them, applied through hand-written IPA pronunciation
+  lexicons so the voice actually speaks with the accent, with a slider for
+  how much the accent slips (see [Accents](#accents)).
 
 **Timing and playback**
 - Dialogue holds for the length of the generated line, then advances — no
@@ -322,10 +322,15 @@ for your character and per voice type in the **NPC Voices** grid. The
 default, **American (neutral)**, adds nothing at all and leaves lines
 exactly as written.
 
-Accents work by **respelling the line phonetically before synthesis** —
-"I'm not going to ask you again" becomes "Ah'm no' gaun tae ask ye again"
-for Scottish — so the voice genuinely produces the sound. Simply naming an
-accent in a steering tag tends to produce a caricature or nothing at all.
+Accents work through a **hand-written pronunciation lexicon**: for each
+accent, the words that actually carry it are mapped to exact IPA
+pronunciations, substituted into the line before synthesis — "Put the gun
+down" becomes "Put the gun /duːn/" for Scottish — using Inworld's inline
+custom-pronunciation support. The substitution happens in code,
+deterministically, so the accent lands on every line regardless of which
+tagging model is configured. (Simply naming an accent in a steering tag
+tends to produce a caricature or nothing at all, and having the tagging
+model respell lines proved unreliable — small models mangle spellings.)
 
 | | |
 |---|---|
@@ -351,29 +356,25 @@ always performs the same way — the audio cache depends on that.
 
 ### Notes and limits
 
-- Requires the **Inworld** provider with `inworld-tts-2` and auto-tagging
-  on; it runs in the same pass as emotion tagging, so it costs nothing
-  extra.
-- The spoken words never change — only their spelling. A guard compares the
-  respelling against the original and falls back to the plain line if the
-  model rewrites rather than respells it.
-- Quality varies by accent and line. Heavier accents (Scottish, Southern,
-  Boston) come through most reliably; subtler ones are lighter. This is
-  steering, not a guarantee.
-- **`tag_model` matters more for accents than for emotion.** Respelling a
-  whole line without losing a word is harder than adding a bracket, and the
-  cheapest models drop small words ("his coat *was* worn" → "his coat
-  worn"). `openai/gpt-4o-mini` (the default) handles it noticeably better
-  than `openai/gpt-4.1-nano`; if accents come out garbled, check this
-  setting first.
-- Each accent's direction covers rhoticity, its signature vowel shifts and
-  its consonant changes, plus how to spell the result so the synthesizer
-  reads it correctly — a final `n` stays one soft letter on a broadened
-  vowel (`down` → `daan`/`daown`/`doon`) rather than a hyphenated or
-  doubled one, which is what makes it land as a hard, over-pronounced `n`.
-  In non-rhotic accents the `r` is deleted from the spelling outright
-  (`worn` → `wawn`, `hard` → `hahd`), because a spelled `r` gets
-  pronounced.
+- Requires the **Inworld** provider with `inworld-tts-2` (the model with
+  inline IPA support). It adds no latency and no extra cost — the
+  substitution is a local string operation, and it works even with
+  emotion auto-tagging turned off.
+- The spoken words never change — only their pronunciation. The tagging
+  model is never asked to respell anything; if it tries anyway, the real
+  words are restored before the lexicon is applied.
+- Each accent's lexicon covers its signature features grounded in real
+  phonology: rhoticity (`worn` → `/wɔːn/` for RP, kept for Scottish),
+  the marker vowel shifts (Cockney MOUTH `down` → `/daːn/`, Scottish
+  `down` → `/duːn/`), and consonant changes (Cockney th-fronting `think`
+  → `/fɪŋk/`, Russian `what` → `/vʌt/`). Words outside the lexicon are
+  spoken normally — an accent only needs to show on the words that carry
+  it.
+- Emotion tagging still colours the delivery: with auto-tagging on, the
+  steering instruction also carries the accent's rhythm and melody.
+- Southern is deliberately mild (drawled `I'm`, pen/pin merger,
+  dropped g's); **Deep South** adds the heavier shifts (flattened `right`,
+  fronted `down`/`house`) — pick by how thick you want it.
 - Changing an accent or the imperfection level regenerates the affected
   lines automatically.
 
