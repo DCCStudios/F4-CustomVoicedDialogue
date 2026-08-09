@@ -64,7 +64,7 @@ public static class AccentLexicon
             }
             return "/" + ipa + "/";
         });
-        return MergeAdjacent.Replace(substituted, " ");
+        return BridgeSpans(accent, MergeAdjacent.Replace(substituted, " "));
     }
 
     /// <summary>Two IPA spans separated only by a space.  Measured on
@@ -74,6 +74,46 @@ public static class AccentLexicon
     /// none; joining the run into a single span removes the pause
     /// entirely without dropping a single accented word.</summary>
     private static readonly Regex MergeAdjacent = new(@"(?<=[^\s/])/\s/(?=[^\s/])", RegexOptions.Compiled);
+
+    // One or two plain words sandwiched between two IPA spans, with
+    // nothing but single spaces around them — punctuation deliberately
+    // breaks the pattern, so a comma keeps its natural phrasing pause.
+    private static readonly Regex BridgeGap = new(
+        @"/(?<a>[^/]+)/(?<gap>(?: [A-Za-z']+){1,2}) /(?<b>[^/]+)/", RegexOptions.Compiled);
+
+    /// <summary>Fuses spans separated by one or two plain words into a
+    /// single span, converting the words between to the accent's own
+    /// pronunciation.  Measured on a real line ("Walkers, all over Cell
+    /// block C.", 4 identical calls per variant): span/plain alternation
+    /// drew a consistent extra 440–600 ms pause at the boundaries
+    /// (~1115 ms total vs the plain sentence's ~840 ms), while the fused
+    /// version matched plain pacing (~840 ms) with every accent feature
+    /// intact.  A word the dictionary cannot pronounce (or a heteronym)
+    /// leaves its gap unbridged.</summary>
+    private static string BridgeSpans(Accent accent, string text)
+    {
+        bool merged;
+        do
+        {
+            merged = false;
+            text = BridgeGap.Replace(text, match =>
+            {
+                var bridged = new List<string>();
+                foreach (var word in match.Groups["gap"].Value.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var ipa = AccentPhonology.Pronunciation(accent, word.ToLowerInvariant());
+                    if (ipa is null)
+                    {
+                        return match.Value;
+                    }
+                    bridged.Add(ipa);
+                }
+                merged = true;
+                return "/" + match.Groups["a"].Value + " " + string.Join(" ", bridged) + " " + match.Groups["b"].Value + "/";
+            });
+        } while (merged);  // a chain of spans fuses pairwise, pass by pass
+        return text;
+    }
 
     /// <summary>The raw entries for an accent, for validation in tests.</summary>
     internal static IEnumerable<KeyValuePair<string, string>> Entries(Accent accent) =>

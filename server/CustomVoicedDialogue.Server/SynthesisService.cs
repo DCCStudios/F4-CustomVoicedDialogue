@@ -88,9 +88,9 @@ public sealed class SynthesisService
         // adding the feature does not invalidate everybody's existing audio.
         var accent = Accents.Get(_config.PlayerAccent);
         // The mechanism version rides in the marker: "ipa" was the
-        // hand-lexicon-only stage, "ipa2" added rule-derived pronunciations, "ipa3" the accent-true r symbols, "ipa4" the Australian vowel overhaul, "ipa5" its KT-Speech corrections, "ipa7" its weakened-glide PRICE, "ipa8" merged IPA spans, "ipa9" the Grimes yeah stretch, "ipa10" its general vowel-holding, "ipa11" stress-tripled emphasis (reverted, caused pauses), "ipa12" restored walk/talk l, "ipa13" unheld before l, "ipa14" hold only the stressed vowel.
+        // hand-lexicon-only stage, "ipa2" added rule-derived pronunciations, "ipa3" the accent-true r symbols, "ipa4" the Australian vowel overhaul, "ipa5" its KT-Speech corrections, "ipa7" its weakened-glide PRICE, "ipa8" merged IPA spans, "ipa9" the Grimes yeah stretch, "ipa10" its general vowel-holding, "ipa11" stress-tripled emphasis (reverted, caused pauses), "ipa12" restored walk/talk l, "ipa13" unheld before l, "ipa14" hold only the stressed vowel, "ipa15" bridged spans.
         // Bumping it regenerates accented audio after a mechanism change.
-        var accentPart = accent.IsNeutral ? "" : $"|ipa14:{accent.Id}|{_config.AccentImperfection}";
+        var accentPart = accent.IsNeutral ? "" : $"|ipa15:{accent.Id}|{_config.AccentImperfection}";
         return Fingerprint(
             $"player|{provider.Id.ToLowerInvariant()}|{voice}|{settings.CanonicalHash()}{accentPart}");
     }
@@ -119,7 +119,7 @@ public sealed class SynthesisService
                 .OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
                 .Select(pair => $"{pair.Key.ToLowerInvariant()}={pair.Value}"));
         // As above: no accents configured, no change to existing audio.
-        var accentPart = accents.Length == 0 ? "" : $"|ipa14:{accents}|{_config.AccentImperfection}";
+        var accentPart = accents.Length == 0 ? "" : $"|ipa15:{accents}|{_config.AccentImperfection}";
         return Fingerprint(
             $"npc|{provider.Id.ToLowerInvariant()}|{overrides}|{settings.CanonicalHash()}{accentPart}");
     }

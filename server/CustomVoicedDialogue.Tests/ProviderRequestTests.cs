@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using CustomVoicedDialogue.Server.Providers;
 using CustomVoicedDialogue.Server.VoiceMapping;
 
@@ -322,11 +322,13 @@ public class ProviderRequestTests
         // The steering tag passes through whole; lexicon words become IPA
         // with their punctuation intact.
         Assert.StartsWith("[irritated, firm]", applied);
-        Assert.Contains("gun /daːn/ and", applied);
+        // "and walk" is a two-word gap between spans, so it bridges into
+        // one continuous span — measured to phrase like the plain
+        // sentence where span/plain alternation drew boundary pauses.
+        Assert.Contains("gun /daːn ənd wɔːk əˈwaɪ/.", applied);
         // "again" rides its hand-written entry — the dictionary's first
         // pronunciation (əˈɡɛn) hides the FACE vowel the accent shifts.
         Assert.Contains("/əˈɡaɪn/.", applied);
-        Assert.EndsWith("walk /əˈwaɪ/.", applied);
         // Deterministic — the audio cache depends on it.
         Assert.Equal(applied, AccentLexicon.Apply(cockney, line, "key-1", 0));
 
@@ -337,9 +339,13 @@ public class ProviderRequestTests
         // delimited runs make the synthesizer pause mid-sentence.
         Assert.Equal("/mɐɪ ˈbɹʌðə/ knows.",
             AccentLexicon.Apply(Accents.Get("southern-grimes"), "My brother knows.", "k", 0));
-        // A span still closes when a plain word follows.
-        Assert.Equal("Ask /mɐɪ ˈbɹʌðə/ about it /təˈnɐɪt/.",
+        // A short plain gap between two spans bridges into one span; a
+        // trailing plain word after the last span stays plain.
+        Assert.Equal("Ask /mɐɪ ˈbɹʌðə əˈbaʊt ɪt təˈnɐɪt/.",
             AccentLexicon.Apply(Accents.Get("southern-grimes"), "Ask my brother about it tonight.", "k", 0));
+        // Punctuation blocks the bridge — a comma keeps its natural pause.
+        Assert.Equal("/ˈwɔːlkəz/, all /ˈoʊvə sɛl blɑːːk siːː/.",
+            AccentLexicon.Apply(Accents.Get("southern-grimes"), "Walkers, all over Cell block C.", "k", 0));
         // Neutral changes nothing at all.
         Assert.Equal(line, AccentLexicon.Apply(Accents.Get(null), line, "key-1", 0));
     }
@@ -585,8 +591,7 @@ public class ProviderRequestTests
             Accents.Get("british-cockney"), 0);
 
         Assert.StartsWith("[irritated, with a quick Cockney edge]", tagged);
-        Assert.Contains("/daːn/", tagged);
-        Assert.Contains("/əˈwaɪ/", tagged);
+        Assert.Contains("/daːn ənd wɔːk əˈwaɪ/", tagged);
         // Words neither hand-listed nor changed by the rules stay real words.
         Assert.Contains("to ask you", tagged);
     }
@@ -616,8 +621,7 @@ public class ProviderRequestTests
         Assert.StartsWith("[cheeky]", tagged);
         Assert.DoesNotContain("dahn", tagged);
         Assert.DoesNotContain("awye", tagged);
-        Assert.Contains("/daːn/", tagged);
-        Assert.Contains("/əˈwaɪ/", tagged);
+        Assert.Contains("/daːn ənd wɔːk əˈwaɪ/", tagged);
     }
 
     [Fact]
@@ -638,7 +642,7 @@ public class ProviderRequestTests
 
         // No LLM call at all, yet the accent still lands.
         Assert.Empty(handler.Requests);
-        Assert.Equal("Put the gun /daːn/ and walk /əˈwaɪ/.", tagged);
+        Assert.Equal("Put the gun /daːn ənd wɔːk əˈwaɪ/.", tagged);
     }
 
     [Fact]

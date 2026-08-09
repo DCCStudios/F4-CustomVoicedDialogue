@@ -45,6 +45,28 @@ internal static class AccentPhonology
         return transformed.SequenceEqual(phones) ? null : Render(transformed);
     }
 
+    /// <summary>The accent's pronunciation of a word whether or not it
+    /// differs from General American — used to bridge otherwise-plain
+    /// words into a surrounding IPA span so the synthesizer phrases the
+    /// stretch as one unit (measured: a plain word sandwiched between two
+    /// spans reliably drew a 400–600 ms pause at the boundaries; fusing
+    /// the run into one span restored plain-sentence pacing).  Null for
+    /// words the dictionary lacks and for heteronyms.</summary>
+    public static string? Pronunciation(Accent accent, string word)
+    {
+        if (Heteronyms.Contains(word))
+        {
+            return null;
+        }
+        var phones = Pronounce(word);
+        if (phones is null)
+        {
+            return null;
+        }
+        Transform(accent.Id, word, phones);
+        return Render(phones);
+    }
+
     private static void Transform(string accentId, string word, List<Phone> p)
     {
         switch (accentId)
