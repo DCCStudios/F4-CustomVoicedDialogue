@@ -160,13 +160,31 @@ public static class AccentLexicon
             ["off"] = "ɔəf", ["lost"] = "lɔəst", ["call"] = "kɔəl",
             ["water"] = "ˈwɔətə", ["daughter"] = "ˈdɔətə",
             ["this"] = "dɪs", ["that"] = "dæt", ["these"] = "diːz", ["them"] = "dɛm",
+            ["those"] = "doʊz",
             ["nothing"] = "ˈnʌtɪn", ["something"] = "ˈsʌmtɪn",
         }),
 
-        ["mid-atlantic"] = Merge(NonRhotic, BroadBath),
+        ["mid-atlantic"] = Merge(Merge(NonRhotic, BroadBath), new(StringComparer.Ordinal)
+        {
+            ["again"] = "əˈɡeɪn", ["been"] = "biːn",
+            ["either"] = "ˈaɪðə", ["neither"] = "ˈnaɪðə",
+            ["new"] = "njuː", ["news"] = "njuːz", ["nuclear"] = "ˈnjuːklɪə",
+            ["duty"] = "ˈdjuːtiː", ["lieutenant"] = "lɛfˈtɛnənt",
+        }),
 
         ["british-rp"] = Merge(Merge(NonRhotic, BroadBath), new(StringComparer.Ordinal)
         {
+            // Words whose British form the American dictionary entry hides.
+            ["again"] = "əˈɡeɪn", ["been"] = "biːn", ["ate"] = "ɛt",
+            ["either"] = "ˈaɪðə", ["neither"] = "ˈnaɪðə",
+            ["schedule"] = "ˈʃɛdjuːl", ["garage"] = "ˈɡærɪdʒ",
+            ["leisure"] = "ˈlɛʒə", ["privacy"] = "ˈprɪvəsiː",
+            ["lieutenant"] = "lɛfˈtɛnənt",
+            // Yod retention: the j GA dropped after t, d, n, s.
+            ["new"] = "njuː", ["news"] = "njuːz", ["knew"] = "njuː",
+            ["due"] = "djuː", ["duty"] = "ˈdjuːtiː", ["tune"] = "tjuːn",
+            ["student"] = "ˈstjuːdənt", ["stupid"] = "ˈstjuːpɪd",
+            ["nuclear"] = "ˈnjuːklɪə",
             ["got"] = "ɡɒt", ["not"] = "nɒt", ["what"] = "wɒt", ["want"] = "wɒnt",
             ["stop"] = "stɒp", ["lot"] = "lɒt", ["job"] = "dʒɒb", ["god"] = "ɡɒd",
             ["gone"] = "ɡɒn", ["off"] = "ɒf", ["was"] = "wɒz", ["wasn't"] = "ˈwɒznt",
@@ -183,7 +201,9 @@ public static class AccentLexicon
             ["down"] = "daːn", ["out"] = "aːt", ["about"] = "əˈbaːt",
             ["now"] = "naː", ["town"] = "taːn", ["around"] = "əˈraːnd",
             ["how"] = "haː", ["house"] = "aːs", ["mouth"] = "maːf",
-            // FACE opens toward PRICE.
+            // FACE opens toward PRICE.  "again" rides its əˈɡeɪn variant
+            // (the dictionary's first entry is əˈɡɛn, which no rule moves).
+            ["again"] = "əˈɡaɪn",
             ["day"] = "daɪ", ["way"] = "waɪ", ["away"] = "əˈwaɪ", ["say"] = "saɪ",
             ["take"] = "taɪk", ["make"] = "maɪk", ["name"] = "naɪm",
             ["place"] = "plaɪs", ["face"] = "faɪs", ["late"] = "laɪt",
@@ -200,6 +220,11 @@ public static class AccentLexicon
             // H-dropping.
             ["have"] = "æv", ["here"] = "ɪə", ["home"] = "əʊm",
             ["hold"] = "əʊld", ["help"] = "ɛlp", ["him"] = "ɪm",
+            // British EYE-ther with the fronted th, and yod-coalescence
+            // (tune → choon) where RP keeps a clean tj.
+            ["either"] = "ˈaɪvə", ["neither"] = "ˈnaɪvə",
+            ["new"] = "njuː", ["news"] = "njuːz", ["nuclear"] = "ˈnjuːklɪə",
+            ["tune"] = "tʃuːn", ["due"] = "dʒuː", ["duty"] = "ˈdʒuːtiː",
         }),
 
         ["british-north"] = Merge(NonRhotic, new(StringComparer.Ordinal)
@@ -216,6 +241,7 @@ public static class AccentLexicon
             ["face"] = "feːs", ["place"] = "pleːs",
             ["go"] = "ɡoː", ["no"] = "noː", ["know"] = "noː", ["home"] = "hoːm",
             ["road"] = "roːd", ["don't"] = "doːnt", ["old"] = "oːld",
+            ["been"] = "biːn", ["new"] = "njuː", ["news"] = "njuːz",
         }),
 
         // Rhotic: every r stays, so no shared non-rhotic base.
@@ -226,29 +252,33 @@ public static class AccentLexicon
             ["around"] = "əˈruːnd", ["how"] = "huː",
             ["day"] = "deː", ["take"] = "teːk", ["make"] = "meːk", ["say"] = "seː",
             ["stay"] = "steː", ["name"] = "neːm", ["place"] = "pleːs",
-            ["face"] = "feːs", ["away"] = "əˈweː",
+            ["face"] = "feːs", ["away"] = "əˈweː", ["again"] = "əˈɡeːn",
             ["go"] = "ɡoː", ["no"] = "noː", ["know"] = "noː", ["home"] = "hoːm",
             ["don't"] = "doːnt", ["road"] = "roːd", ["old"] = "oːld", ["told"] = "toːld",
             ["going"] = "ˈɡoːɪn", ["nothing"] = "ˈnʌθɪn", ["something"] = "ˈsʌmθɪn",
             ["morning"] = "ˈmɔrnɪn",
+            ["been"] = "biːn", ["was"] = "wɪz",
+            ["new"] = "njuː", ["news"] = "njuːz",
         },
 
         // Welsh is carried mostly by melody (the steering instruction);
-        // the lexicon just purifies the FACE and GOAT vowels.
-        ["welsh"] = new(StringComparer.Ordinal)
+        // the lexicon purifies the FACE and GOAT vowels, and Welsh English
+        // is non-rhotic, so it shares that word set too.
+        ["welsh"] = Merge(NonRhotic, new(StringComparer.Ordinal)
         {
             ["day"] = "deː", ["face"] = "feːs", ["place"] = "pleːs",
             ["name"] = "neːm", ["take"] = "teːk", ["make"] = "meːk",
             ["go"] = "ɡoː", ["no"] = "noː", ["know"] = "noː",
             ["home"] = "hoːm", ["road"] = "roːd",
-        },
+            ["been"] = "biːn",
+        }),
 
         ["irish"] = new(StringComparer.Ordinal)
         {
             ["think"] = "tɪŋk", ["thing"] = "tɪŋ", ["things"] = "tɪŋz",
             ["three"] = "triː", ["through"] = "truː",
             ["nothing"] = "ˈnʌtɪn", ["something"] = "ˈsʌmtɪn", ["anything"] = "ˈɛnitɪn",
-            ["this"] = "dɪs", ["that"] = "dæt", ["these"] = "diːz",
+            ["this"] = "dɪs", ["that"] = "dæt", ["these"] = "diːz", ["those"] = "doʊz",
             ["them"] = "dɛm", ["then"] = "dɛn", ["there"] = "dɛr", ["with"] = "wɪt",
             ["time"] = "tɒɪm", ["like"] = "lɒɪk", ["right"] = "rɒɪt",
             ["night"] = "nɒɪt", ["fine"] = "fɒɪn", ["mind"] = "mɒɪnd",
@@ -259,6 +289,7 @@ public static class AccentLexicon
             ["think"] = "tiŋk", ["thing"] = "tiŋ", ["things"] = "tiŋs",
             ["nothing"] = "ˈnotiŋ", ["something"] = "ˈsomtiŋ",
             ["this"] = "dis", ["that"] = "dat", ["three"] = "tri",
+            ["the"] = "də", ["them"] = "dɛm", ["is"] = "is",
             ["very"] = "ˈbɛri", ["because"] = "biˈkos", ["people"] = "ˈpipol",
             ["school"] = "esˈkul", ["street"] = "esˈtrit", ["stop"] = "esˈtop",
             ["speak"] = "esˈpik", ["start"] = "esˈtart", ["going"] = "ˈɡoin",
@@ -266,6 +297,9 @@ public static class AccentLexicon
 
         ["australian"] = Merge(NonRhotic, new(StringComparer.Ordinal)
         {
+            ["again"] = "əˈɡæɪn", ["been"] = "biːn", ["my"] = "mɑɪ",
+            ["new"] = "njuː", ["news"] = "njuːz", ["nuclear"] = "ˈnjuːklɪə",
+            ["tune"] = "tʃuːn", ["due"] = "dʒuː",
             ["day"] = "dæɪ", ["way"] = "wæɪ", ["say"] = "sæɪ", ["take"] = "tæɪk",
             ["make"] = "mæɪk", ["name"] = "næɪm", ["place"] = "plæɪs",
             ["late"] = "læɪt", ["mate"] = "mæɪt", ["wait"] = "wæɪt",
@@ -281,21 +315,24 @@ public static class AccentLexicon
             ["nothing"] = "ˈnʌsɪŋ", ["something"] = "ˈsʌmsɪŋ",
             ["what"] = "vʌt", ["want"] = "vʌnt", ["was"] = "vʌs", ["will"] = "vɪl",
             ["with"] = "vɪs", ["where"] = "vɛr", ["why"] = "vaɪ", ["work"] = "vɔrk",
+            ["we"] = "viː", ["were"] = "vɜr", ["would"] = "vʊt",
             ["have"] = "hæf", ["good"] = "ɡʊt", ["need"] = "niːt", ["friend"] = "frɛnt",
         },
 
         ["french"] = new(StringComparer.Ordinal)
         {
             ["the"] = "zə", ["this"] = "zis", ["that"] = "zæt", ["these"] = "ziz",
+            ["them"] = "zɛm",
             ["think"] = "siŋk", ["thing"] = "siŋ",
             ["something"] = "ˈsomsiŋ", ["nothing"] = "ˈnɔsiŋ", ["three"] = "sriː",
             ["have"] = "æv", ["house"] = "aʊs", ["home"] = "oʊm",
-            ["happy"] = "ˈæpi", ["is"] = "iːz",
+            ["happy"] = "ˈæpi", ["is"] = "iːz", ["it"] = "iːt", ["his"] = "iːz",
         },
 
         ["german"] = new(StringComparer.Ordinal)
         {
             ["the"] = "zə", ["this"] = "zɪs", ["that"] = "zæt", ["these"] = "ziːz",
+            ["them"] = "zɛm", ["those"] = "zoʊz", ["we"] = "viː",
             ["think"] = "sɪŋk", ["thing"] = "sɪŋ",
             ["something"] = "ˈsʌmsɪŋ", ["nothing"] = "ˈnʌsɪŋ",
             ["want"] = "vɒnt", ["was"] = "vɒs", ["what"] = "vɒt", ["will"] = "vɪl",
@@ -306,6 +343,7 @@ public static class AccentLexicon
         ["italian"] = new(StringComparer.Ordinal)
         {
             ["think"] = "tiŋk", ["thing"] = "tiŋ", ["this"] = "dis", ["that"] = "dat",
+            ["the"] = "də", ["them"] = "dɛm", ["is"] = "iːz",
             ["three"] = "tri", ["nothing"] = "ˈnotiŋ", ["something"] = "ˈsomtiŋ",
             ["have"] = "av", ["house"] = "ˈaus",
         },

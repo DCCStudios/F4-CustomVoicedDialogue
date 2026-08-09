@@ -323,6 +323,9 @@ public class ProviderRequestTests
         // with their punctuation intact.
         Assert.StartsWith("[irritated, firm]", applied);
         Assert.Contains("gun /daːn/ and", applied);
+        // "again" rides its hand-written entry — the dictionary's first
+        // pronunciation (əˈɡɛn) hides the FACE vowel the accent shifts.
+        Assert.Contains("/əˈɡaɪn/.", applied);
         Assert.EndsWith("walk /əˈwaɪ/.", applied);
         // Deterministic — the audio cache depends on it.
         Assert.Equal(applied, AccentLexicon.Apply(cockney, line, "key-1", 0));
@@ -477,7 +480,7 @@ public class ProviderRequestTests
         Assert.Contains("/daːn/", tagged);
         Assert.Contains("/əˈwaɪ/", tagged);
         // Words neither hand-listed nor changed by the rules stay real words.
-        Assert.Contains("to ask you again", tagged);
+        Assert.Contains("to ask you", tagged);
     }
 
     [Fact]
