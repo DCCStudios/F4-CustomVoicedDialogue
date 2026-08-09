@@ -427,7 +427,7 @@ public class ProviderRequestTests
     [InlineData("southern-grimes", "right", "ɹɐɪt")]       // PRICE keeps a trace of its glide
     [InlineData("southern-grimes", "night", "nɐɪt")]       // "nigh-t": not "naht", not "naight"
     [InlineData("southern-grimes", "brother", "ˈbɹʌðə")]   // unstressed coda r drops
-    [InlineData("southern-grimes", "walkers", "ˈwɔːkəz")]
+    [InlineData("southern-grimes", "walkers", "ˈwɔːːkəz")]  // coda r drops, long vowel held
     [InlineData("russian", "everything", "ˈɛvriːˌsɪŋ")]    // th → s
     [InlineData("german", "javelin", "ˈtʃɛvələn")]         // dʒ → tʃ, æ → ɛ
     [InlineData("spanish-mexican", "strange", "esˈtɾeɪndʒ")] // tapped cluster r
@@ -483,15 +483,26 @@ public class ProviderRequestTests
         // Southern stays milder than Deep South on the same word.
         Assert.Null(AccentPhonology.Derive(Accents.Get("southern"), "right"));
         Assert.Equal("ɹɑːt", AccentPhonology.Derive(Accents.Get("deep-south"), "right"));
-        // Rick Grimes: stressed syllables keep their r, and — per the
-        // linguists — NO pen-pin merger (general Southern does merge).
-        Assert.Null(AccentPhonology.Derive(Accents.Get("southern-grimes"), "hard"));
+        // Rick Grimes: stressed syllables keep their r (only the vowel
+        // holds), and — per the linguists — NO pen-pin merger (general
+        // Southern does merge).
+        Assert.Equal("hɑːːɹd", AccentPhonology.Derive(Accents.Get("southern-grimes"), "hard"));
         Assert.Null(AccentPhonology.Derive(Accents.Get("southern-grimes"), "pen"));
         Assert.Null(AccentPhonology.Derive(Accents.Get("southern-grimes"), "ten"));
         Assert.Equal("pɪn", AccentPhonology.Derive(Accents.Get("southern"), "pen"));
         // And the Coral phenomenon rides the hand lexicon.
         Assert.Contains("/ˈkɔɹəl/", AccentLexicon.Apply(
             Accents.Get("southern-grimes"), "Carl! Stay back, Carl!", "k", 0));
+        // "Yeah" gets the full-mouth "yeeAah" stretch, not the quick
+        // standard glide.
+        Assert.Contains("/jiːːˈæːːə/", AccentLexicon.Apply(
+            Accents.Get("southern-grimes"), "Yeah, I heard you.", "k", 0));
+        // Full-mouth articulation holds any already-long vowel as a
+        // sustained sound (sweet → swiːːt, "swEET" not "swe-eit"), but
+        // leaves diphthongs — genuine glides — untouched.
+        Assert.Equal("swiːːt", AccentPhonology.Derive(Accents.Get("southern-grimes"), "sweet"));
+        Assert.Equal("niːːdz", AccentPhonology.Derive(Accents.Get("southern-grimes"), "needs"));
+        Assert.DoesNotContain("ɐɪː", AccentPhonology.Derive(Accents.Get("southern-grimes"), "right") ?? "");
     }
 
     [Fact]

@@ -116,6 +116,12 @@
                         <Button Content="Save" Click="OnSavePlayerAccent"/>
                     </StackPanel>
 
+                    <TextBlock Text="Preview text" Margin="0,12,0,0"/>
+                    <TextBlock TextWrapping="Wrap" Opacity="0.7" FontSize="11"
+                               Text="Type your own line and Preview will speak it instead of cycling the built-in samples. Leave blank to use the samples."/>
+                    <TextBox x:Name="PlayerAccentPreviewText" Width="480" HorizontalAlignment="Left"
+                             Margin="0,6,0,0" AcceptsReturn="False" TextWrapping="Wrap"/>
+
                     <TextBlock Text="Accent imperfection" Margin="0,16,0,0"/>
                     <TextBlock TextWrapping="Wrap" Opacity="0.7" FontSize="11"
                                Text="Even native speakers' accents wobble. This is how often a line is performed with the accent easing off — 0 is flawless and slightly artificial; higher scatters lighter lines through a conversation."/>

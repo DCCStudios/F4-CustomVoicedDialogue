@@ -68,14 +68,17 @@ internal static class AccentPhonology
                 // features: PRICE keeps a TRACE of its glide from a
                 // raised central onset (night → nɐɪt — "nigh-t", neither
                 // the flat "naht" nor the full "naight"), -ing drops its
-                // g, and
-                // the r's stay American except the unstressed codas that
-                // audibly soften (brother → brʌðə, walkers → wɔːkəz).
+                // g, the r's stay American except the unstressed codas
+                // that audibly soften (brother → brʌðə, walkers →
+                // wɔːkəz), and the full-mouth delivery holds every long
+                // vowel as a sustained pure sound rather than letting it
+                // glide (sweet → swiːːt, "swEET" not "swe-eit").
                 // Deliberately NO pen-pin merger and NO MOUTH fronting —
                 // linguists note both absences as tells of the portrayal.
                 Vowel(p, "aɪ", "ɐɪ");
                 UnstressedDerhoting(p);
                 IngToIn(p);
+                HoldLongVowels(p);
                 break;
             case "boston":
                 NonRhotic(p);
@@ -536,6 +539,23 @@ internal static class AccentPhonology
                 i > 0 && p[i - 1] is { IsVowel: true, Stress: 0 })
             {
                 p.RemoveAt(i);
+            }
+        }
+    }
+
+    /// <summary>Rick Grimes' full-mouth articulation: every already-long
+    /// vowel (FLEECE, GOOSE, START, THOUGHT, NURSE…) gets an extra length
+    /// mark, sustaining it as a pure held sound instead of letting it
+    /// glide toward the next one (sweet → swiːːt).  Diphthongs are left
+    /// alone — a glide is what they are — this only extends vowels that
+    /// were already a single sustained sound.</summary>
+    private static void HoldLongVowels(List<Phone> p)
+    {
+        for (var i = 0; i < p.Count; i++)
+        {
+            if (p[i].IsVowel && p[i].Sound.EndsWith('ː'))
+            {
+                p[i] = p[i] with { Sound = p[i].Sound + "ː" };
             }
         }
     }

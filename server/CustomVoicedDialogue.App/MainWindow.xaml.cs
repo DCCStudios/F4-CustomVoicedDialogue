@@ -464,11 +464,12 @@ public partial class MainWindow : Window
             return;
         }
         var accent = PlayerAccentCombo.SelectedItem as Accent ?? Accents.Get(Accents.Default);
-        // Each click cycles to the next sample.  Together they touch every
-        // feature the accents trade on: the PRICE/MOUTH/FACE vowel shifts,
-        // th and wh consonant changes, h-dropping, broad BATH, LOT
-        // rounding, r flavour (tap/trill words), yod words, and the
-        // function words the lexicons target.
+        // Fallback when the preview text box is empty: each click cycles
+        // to the next sample.  Together they touch every feature the
+        // accents trade on: the PRICE/MOUTH/FACE vowel shifts, th and wh
+        // consonant changes, h-dropping, broad BATH, LOT rounding, r
+        // flavour (tap/trill words), yod words, and the function words
+        // the lexicons target.
         string[] samples =
         [
             "I'm not going to ask you again. Put the gun down and walk away.",
@@ -478,12 +479,12 @@ public partial class MainWindow : Window
             "Sorry, friend — we haven't heard any news about the raiders around here.",
             "What was that? Stay right where you are and keep your voice down.",
         ];
-        var sample = samples[_testTakeCounter % samples.Length];
-
         // Read every control up front: the synthesis call runs on a worker
         // thread, and WPF controls may only be touched on the UI thread.
         var voice = PlayerVoiceCombo.Text;
         var imperfection = (int)Math.Round(AccentImperfectionSlider.Value);
+        var customText = PlayerAccentPreviewText.Text.Trim();
+        var sample = customText.Length > 0 ? customText : samples[_testTakeCounter % samples.Length];
 
         PlayerAccentResult.Text = "synthesizing preview…";
         try

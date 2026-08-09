@@ -233,6 +233,11 @@ public static class AccentLexicon
             // and never the full "Ai'm".
             ["i"] = "ɐɪ", ["my"] = "mɐɪ",
             ["thing"] = "θæŋ", ["things"] = "θæŋz", ["get"] = "ɡɪt",
+            // Full-mouth articulation stretches "yeah" into a held front
+            // vowel opening onto a stressed "aa" with a soft trailing
+            // "ah" — "yeeAah" — rather than the quick standard glide.
+            // The extra length marks match HoldLongVowels' general rule.
+            ["yeah"] = "jiːːˈæːːə",
             // The "Coral" phenomenon: the -ar-l breaks into two syllables.
             ["carl"] = "ˈkɔrəl", ["carl's"] = "ˈkɔrəlz",
         },
