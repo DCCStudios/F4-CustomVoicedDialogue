@@ -515,6 +515,16 @@ public class ProviderRequestTests
         Assert.Equal("tʃɔːlk", AccentPhonology.Derive(Accents.Get("southern-grimes"), "chalk"));
         // Never fires on a word that never had the letter.
         Assert.Equal("hɔːːk", AccentPhonology.Derive(Accents.Get("southern-grimes"), "hawk"));
+        // Only the vowel carrying a word's PRIMARY stress holds — a
+        // secondary-stressed or unstressed long vowel elsewhere in the
+        // same word stays at its natural length.  Measured on
+        // inworld-tts-2: packing every long vowel in a two-word merged
+        // span (democracy + anymore, 4 held vowels) produced an internal
+        // pause between the words in 2 of 4 identical calls; restricting
+        // the hold to only each word's stressed syllable (2 held vowels)
+        // brought that to 0 of 4.
+        Assert.Equal("dɪˈmɑːːkɹəsiː", AccentPhonology.Derive(Accents.Get("southern-grimes"), "democracy"));
+        Assert.Equal("ˌɛniːˈmɔːːɹ", AccentPhonology.Derive(Accents.Get("southern-grimes"), "anymore"));
     }
 
     [Fact]

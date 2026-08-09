@@ -5,8 +5,10 @@ namespace CustomVoicedDialogue.Server.Audio;
 /// <summary>
 /// Normalizes whatever container a TTS service returns into the format the
 /// game engine is known to accept for voice lines — RIFF PCM, 16-bit,
-/// mono, 48 kHz — with a 150 ms silence lead-in (the engine clips the
-/// first moments of playback; the pad was established by HerikaServer).
+/// mono, 48 kHz — with any dead air the provider left at the front of the
+/// line trimmed off (see <see cref="TrimLeadingSilence"/>) and a clean
+/// 150 ms silence lead-in added in its place (the engine clips the first
+/// moments of playback; the pad was established by HerikaServer).
 /// Mono and 16-bit are engine requirements (voice lines are 3D-positioned);
 /// 48 kHz is the quality ceiling of the cloud providers, so nothing is
 /// downsampled on the way in.
@@ -59,7 +61,7 @@ public static class AudioPipeline
         {
             pcm.Write(readBuffer, 0, read);
         }
-        var samples = pcm.ToArray();
+        var samples = TrimLeadingSilence(pcm.ToArray(), targetFormat.AverageBytesPerSecond);
         ApplyGain(samples, ComputeLevellingGain(samples));
 
         using var output = new MemoryStream();
@@ -71,6 +73,34 @@ public static class AudioPipeline
             writer.Write(samples, 0, samples.Length);
         }
         return output.ToArray();
+    }
+
+    /// <summary>Cuts dead air from the front of the line.  Measured live:
+    /// Inworld's steering brackets ("[firm, commanding tone] ...") reliably
+    /// leave a beat of silence before the spoken line actually starts (4 of
+    /// 4 identical calls with a bracket vs. 0 of 4 without one) — this
+    /// happens whether or not the game needs it, so it is removed here
+    /// rather than chased in the prompt.  The 150 ms engine-required pad
+    /// above is added back afterward, so the game still gets a clean,
+    /// controlled lead-in regardless of how much dead air the provider
+    /// returned.</summary>
+    internal static byte[] TrimLeadingSilence(byte[] pcm16, int bytesPerSecond)
+    {
+        const double threshold = 0.01;  // matches ComputeLevellingGain's noise floor
+        var searchLimit = Math.Min(pcm16.Length, bytesPerSecond * 3);
+        var offset = 0;
+        for (; offset + 1 < searchLimit; offset += 2)
+        {
+            var sample = (short)(pcm16[offset] | (pcm16[offset + 1] << 8)) / 32768.0;
+            if (Math.Abs(sample) >= threshold)
+            {
+                return offset == 0 ? pcm16 : pcm16[offset..];
+            }
+        }
+        // No sound within the search window (or the whole clip is
+        // silent) — leave it as-is; the validator flags silence
+        // explicitly downstream rather than this guessing at it.
+        return pcm16;
     }
 
     /// <summary>Gain that brings speech to <see cref="TargetRmsDbfs"/>

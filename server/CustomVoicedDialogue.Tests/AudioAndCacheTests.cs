@@ -25,6 +25,40 @@ public class AudioPipelineTests
     }
 
     [Fact]
+    public void TrimsProviderLeadingSilenceButKeepsTheEngineLeadInPad()
+    {
+        // Inworld reliably leaves a beat of dead air after a bracketed
+        // steering instruction before the line actually starts (measured:
+        // 4 of 4 calls with a bracket vs. 0 of 4 without one) — whatever
+        // the provider returns, the game should still only ever hear our
+        // own controlled 150 ms pad, not a provider-dependent one.
+        var withLeadIn = AudioPipeline.NormalizeToGameWav(
+            TestAudio.SourceWavWithLeadingSilence(silenceSeconds: 0.6, toneSeconds: 1.0));
+        var withoutLeadIn = AudioPipeline.NormalizeToGameWav(
+            TestAudio.SourceWavWithLeadingSilence(silenceSeconds: 0.0, toneSeconds: 1.0));
+
+        using var trimmedReader = new WaveFileReader(new MemoryStream(withLeadIn));
+        using var plainReader = new WaveFileReader(new MemoryStream(withoutLeadIn));
+
+        // The 600 ms the provider added up front must not survive: both
+        // come out the same length (150 ms pad + ~1 s of tone), not 600 ms
+        // apart.
+        Assert.InRange(
+            Math.Abs(trimmedReader.TotalTime.TotalMilliseconds - plainReader.TotalTime.TotalMilliseconds),
+            0, 60);
+        Assert.InRange(trimmedReader.TotalTime.TotalMilliseconds, 1050, 1350);
+    }
+
+    [Fact]
+    public void LeadingSilenceTrimLeavesSilentAudioAlone()
+    {
+        // A genuinely silent clip must not be reduced to nothing — that is
+        // the validator's call to make (and report why), not this pass's.
+        var trimmed = AudioPipeline.TrimLeadingSilence(new byte[48000 * 2 * 2], 48000 * 2);
+        Assert.Equal(48000 * 2 * 2, trimmed.Length);
+    }
+
+    [Fact]
     public void LevellingBringsQuietAndLoudLinesToTheSameLoudness()
     {
         static double SpeechRms(byte[] wav)

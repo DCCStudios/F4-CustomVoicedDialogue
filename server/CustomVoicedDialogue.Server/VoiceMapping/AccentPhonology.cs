@@ -70,9 +70,10 @@ internal static class AccentPhonology
                 // the flat "naht" nor the full "naight"), -ing drops its
                 // g, the r's stay American except the unstressed codas
                 // that audibly soften (brother → brʌðə, walkers →
-                // wɔːkəz), the full-mouth delivery holds every long
-                // vowel as a sustained pure sound rather than letting it
-                // glide (sweet → swiːːt, "swEET" not "swe-eit"), and the
+                // wɔːkəz), the full-mouth delivery holds each word's
+                // stressed vowel as a sustained pure sound rather than
+                // letting it glide (sweet → swiːːt, "swEET" not
+                // "swe-eit"), and the
                 // same clear, driven-forward articulation restores the
                 // historical l that General American drops in the
                 // walk/talk family (walk → wɔːlk, not the "wark" an
@@ -570,19 +571,21 @@ internal static class AccentPhonology
         }
     }
 
-    /// <summary>Rick Grimes' full-mouth articulation: every already-long
-    /// vowel (FLEECE, GOOSE, START, THOUGHT, NURSE…) gets an extra length
-    /// mark, sustaining it as a pure held sound instead of letting it
-    /// glide toward the next one (sweet → swiːːt).  Diphthongs are left
-    /// alone — a glide is what they are — this only extends vowels that
-    /// were already a single sustained sound.  Measured on
-    /// inworld-tts-2: a THIRD length mark on the stressed syllable, tried
-    /// to push the emphasis further ("wAALL-kers"), reliably fragmented
-    /// the sentence into extra pauses (3 vs. the 1 the plain line and
-    /// this doubled version both get) — so the hold stays uniform
-    /// regardless of stress, and the stressed-syllable emphasis for
-    /// words like "walkers" instead comes from restoring their missing
-    /// consonants (see RestoreSilentL).</summary>
+    /// <summary>Rick Grimes' full-mouth articulation: the vowel carrying a
+    /// word's PRIMARY stress gets an extra length mark, sustaining it as a
+    /// pure held sound instead of letting it glide toward the next one
+    /// (sweet → swiːːt).  Diphthongs are left alone — a glide is what
+    /// they are.  Measured on inworld-tts-2 with a real merged-span
+    /// sentence ("democracy anymore"): holding every long vowel in both
+    /// words packed four held vowels into one continuous span and that
+    /// reliably produced an internal pause between them (2 of 4 identical
+    /// calls); holding only each word's stressed vowel — half the
+    /// density, same words — brought it to zero pauses across 4 calls,
+    /// matching the fully unheld baseline.  So only the stressed syllable
+    /// holds; a secondary-stressed or unstressed long vowel elsewhere in
+    /// the same word stays at its natural length.  (A third length mark
+    /// on top of that, tried earlier for extra emphasis, reliably added
+    /// pauses on its own and was dropped — see git history.)</summary>
     private static void HoldLongVowels(List<Phone> p)
     {
         for (var i = 0; i < p.Count; i++)
@@ -594,7 +597,7 @@ internal static class AccentPhonology
             // extra-long vowel with a consonant cluster right after it
             // is the one pattern behind the "warkers"/"whirl-kers"
             // mishearings, so the two are kept apart.
-            if (p[i].IsVowel && p[i].Sound.EndsWith('ː') &&
+            if (p[i].IsVowel && p[i].Stress == 1 && p[i].Sound.EndsWith('ː') &&
                 !(i + 1 < p.Count && p[i + 1].Sound == "l"))
             {
                 p[i] = p[i] with { Sound = p[i].Sound + "ː" };

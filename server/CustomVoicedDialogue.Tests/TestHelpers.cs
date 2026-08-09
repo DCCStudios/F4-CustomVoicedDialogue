@@ -72,6 +72,23 @@ public static class TestAudio
     public static byte[] SilentSourceWav(int sampleRate = 22050, double seconds = 1.0) =>
         WrapWav(new byte[(int)(sampleRate * seconds) * 2], sampleRate);
 
+    /// <summary>A provider response with dead air before the line starts —
+    /// the shape Inworld returns after a bracketed steering instruction.</summary>
+    public static byte[] SourceWavWithLeadingSilence(double silenceSeconds, int sampleRate = 22050, double toneSeconds = 1.0, double amplitude = 0.5)
+    {
+        var silenceCount = (int)(sampleRate * silenceSeconds);
+        var toneCount = (int)(sampleRate * toneSeconds);
+        var pcm = new byte[(silenceCount + toneCount) * 2];
+        for (var i = 0; i < toneCount; i++)
+        {
+            var sample = (short)(Math.Sin(2 * Math.PI * 440 * i / sampleRate) * amplitude * short.MaxValue);
+            var offset = (silenceCount + i) * 2;
+            pcm[offset] = (byte)(sample & 0xFF);
+            pcm[offset + 1] = (byte)(sample >> 8);
+        }
+        return WrapWav(pcm, sampleRate);
+    }
+
     public static byte[] WrapWav(byte[] pcm, int sampleRate)
     {
         using var output = new MemoryStream();
