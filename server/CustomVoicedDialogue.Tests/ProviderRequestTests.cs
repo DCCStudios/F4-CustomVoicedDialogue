@@ -357,6 +357,27 @@ public class ProviderRequestTests
     }
 
     [Fact]
+    public void Accent_UnreadableRespellingsAreRejected()
+    {
+        // The reported failure: "away" respelled as "aawy" is not a spelling
+        // English uses, so the synthesizer reads it letter by letter.
+        Assert.True(InworldProvider.LooksUnreadable("ah'm nawht goin' to ask ya again poot the gun dahn and wahk aawy"));
+        Assert.True(InworldProvider.LooksUnreadable("put it daa-n an' walk awy"));
+        Assert.True(InworldProvider.LooksUnreadable("uuse the duur"));
+
+        // Genuine accent respellings must survive it.
+        Assert.False(InworldProvider.LooksUnreadable("ah'm not gonna ask ya again put th' gun dahn an' walk awa'"));
+        Assert.False(InworldProvider.LooksUnreadable("ah'm no' gonna ask ye again put th' gun doon an' walk awa'"));
+        Assert.False(InworldProvider.LooksUnreadable("hiz coat wuz wawn and tawn and the bahn had buhnd daown"));
+        Assert.False(InworldProvider.LooksUnreadable("put it dahn and get aht of tahn befoah the sun goez dahn"));
+
+        // Ordinary English is never flagged, including the words the rules
+        // would otherwise trip over.
+        Assert.False(InworldProvider.LooksUnreadable("put the gun down and walk away"));
+        Assert.False(InworldProvider.LooksUnreadable("it's always been that way anyway"));
+    }
+
+    [Fact]
     public void Accent_SlipsAreDeterministicAndScaleWithImperfection()
     {
         // The same line always performs the same way, or the audio cache

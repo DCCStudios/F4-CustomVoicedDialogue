@@ -21,28 +21,41 @@ public static class Accents
 {
     public const string Default = "american";
 
-    /// <summary>Rules about how to write a respelling, as opposed to which
-    /// sounds to aim for.  These exist because the synthesizer reads the
-    /// letters literally: an r left in a non-rhotic word gets pronounced,
-    /// and a final n that is split off, doubled or hyphenated gets
-    /// over-articulated — the "dow-n"/"wor-n" problem, where the n lands
-    /// far harder than any real speaker would say it.</summary>
+    /// <summary>Rules about how to WRITE a respelling, as opposed to which
+    /// sounds to aim for.  The synthesizer derives pronunciation from the
+    /// letters, so a spelling English never uses ("aawy" for away) comes out
+    /// mangled, a spelled r in a non-rhotic word still gets pronounced, and
+    /// a final n split off with a hyphen lands far harder than any speaker
+    /// would say it.  The reliable technique is to make each respelled
+    /// syllable look like a real English word.</summary>
     public const string RespellingCraft =
-        "How to write the respelling: keep every respelled word looking like a single pronounceable " +
-        "English word. Do not put hyphens or spaces inside a word, and use an apostrophe only where a " +
-        "sound is genuinely dropped (goin', 'ouse) — anything else makes the synthesizer read the word " +
-        "in pieces and over-articulate it. A final n or m stays one plain letter attached to its vowel: " +
-        "never double it, never split it off, never precede it with a hyphen or apostrophe. Where the " +
-        "accent carries the nasal in the vowel rather than punching the consonant (as in down, town, " +
-        "worn, gone), lengthen or broaden the vowel and leave a single soft n after it. In a non-rhotic " +
-        "accent you must DELETE the letter r from the spelling wherever it is not followed by a vowel " +
-        "(worn → wawn, hard → hahd, better → bettuh); leaving the r in makes the synthesizer pronounce " +
-        "it and the accent collapses. In a rhotic accent the opposite holds — every r stays exactly " +
-        "where it is. Respelling changes spelling only, never the words: every word of the original " +
-        "must still be there, including small ones like was, is, the, and, to, and every grammatical " +
-        "ending must survive (goes → goez, never go; burned → buhnd, never burn). Two words may merge " +
-        "only where the accent genuinely does that (going to → gonna); dropping a word is never " +
-        "allowed.";
+        "HOW TO WRITE THE RESPELLING — this decides whether the synthesizer can read it at all. " +
+        "The one reliable technique: respell a syllable so it looks like a real English word, or like " +
+        "a spelling pattern English already uses. That is why day → die, face → fice, name → nime, " +
+        "time → toime, house → hahs and down → dahn all work — every one is readable English. A " +
+        "spelling English never uses is read letter by letter and comes out mangled, so never invent " +
+        "clusters, never write doubled vowels like aa, ii, uu or yy, and never leave a bare y standing " +
+        "for a vowel (away → aawy is broken and unreadable). Build only from patterns that already " +
+        "occur in English words — ah, aw, ay, ee, eh, er, ih, oh, oo, ou, ow, oy, uh — and prefer the " +
+        "spellings dialect writing has used for centuries: Ah'm (never Ai'm), ya, yer, ye, wot, woz, " +
+        "wuz, o', an', th', da, gonna, outta, 'ave, 'ouse, dahn, aboot, awa'. " +
+        "If one word needs several sounds changed, split it at the SYLLABLE boundary with a hyphen so " +
+        "that each piece is itself readable English (man → may-un, settlement → settle-ment); never " +
+        "hyphenate a lone consonant off the end, which is what makes an n land like a hammer " +
+        "(daa-n and wor-n are wrong; daan and wawn are right). A final n or m stays one plain letter " +
+        "attached to its vowel — never doubled, never split off. Where the accent carries the nasal in " +
+        "the vowel instead of punching the consonant (down, town, worn, gone), broaden the vowel and " +
+        "leave a single soft n after it. " +
+        "In a non-rhotic accent DELETE the letter r wherever it is not followed by a vowel (worn → " +
+        "wawn, hard → hahd, better → bettuh); leaving it in makes the synthesizer pronounce it and the " +
+        "accent collapses. In a rhotic accent every r stays exactly where it is. " +
+        "Respelling changes spelling only, never the words: every word of the original must still be " +
+        "there, including small ones like was, is, the, and, to, and every grammatical ending must " +
+        "survive (goes → goez, never go; burned → buhnd, never burn). Two words may merge only where " +
+        "the accent genuinely does that (going to → gonna); dropping a word is never allowed. " +
+        "Above all: if a word has no natural readable respelling in this accent, LEAVE IT SPELLED " +
+        "NORMALLY. An ordinary word read correctly always beats an invented one the synthesizer " +
+        "stumbles over — the accent only needs to show on the words that carry it.";
 
     public static IReadOnlyList<Accent> All { get; } =
     [
@@ -91,9 +104,10 @@ public static class Accents
 
         new("british-cockney", "British — Cockney",
             "a London Cockney accent, non-rhotic: delete r after a vowel (worn → wawn, better → " +
-            "bettah). MOUTH is the signature — ou becomes a long flat aa (house → haas, down → daan, " +
-            "out → aat, about → abaat), with the n after it soft and swallowed, never punched. PRICE " +
-            "widens (like → loike, time → toime) and FACE opens (face → fice, day → die). Th fronts " +
+            "bettah). MOUTH is the signature — ou becomes a long flat ah (house → hahs, down → dahn, " +
+            "out → aht, about → abaht), with the n after it soft and swallowed, never punched. PRICE " +
+            "widens (like → loike, time → toime) and FACE opens (face → fice, day → die, away → " +
+            "awye). Th fronts " +
             "to f or v (think → fink, brother → bruvver). H drops (house → 'ouse, have → 'ave). T " +
             "between vowels becomes a glottal catch (bottle → bo'le, water → wo'er). L at the end " +
             "goes to w (milk → miwk, ball → baw)."),

@@ -330,9 +330,15 @@ public sealed class InworldProvider : ITtsProvider
 
             // An accent respells the words on purpose, so exact equality
             // cannot be the test.  Accept a line that is still recognisably
-            // the same one; a wholesale rewrite still falls through.
+            // the same one; a wholesale rewrite still falls through.  A
+            // respelling the synthesizer cannot sound out is worse than no
+            // accent at all, so that falls back to the plain line too.
             if (accented && originalWords.Length > 0 && IsPlausibleRespelling(originalWords, taggedWords))
             {
+                if (LooksUnreadable(taggedWords))
+                {
+                    return new AutoTagResult(RuleBasedTags(text), null);
+                }
                 return new AutoTagResult(EnsureNonVerbalsKept(prepared, tagged), null);
             }
 
@@ -547,6 +553,36 @@ public sealed class InworldProvider : ITtsProvider
             }
             return "[" + action + "]";
         });
+
+    /// <summary>Letter sequences English orthography does not use, which a
+    /// synthesizer cannot sound out and reads letter by letter instead —
+    /// the "aawy" (for away) failure.  Catching them in code means a weak
+    /// tagging model cannot produce a mangled line no matter what the
+    /// prompt said.</summary>
+    private static readonly System.Text.RegularExpressions.Regex UnreadableSpelling =
+        new(@"aa|uu|yy|[aeiou]{4}|[bcdfghjklmnpqrstvwxz]{4}|w[aeiou]?y\b",
+            System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    /// <summary>True when a respelling contains a sequence the synthesizer
+    /// will stumble over.  Checked per word so an ordinary word is never
+    /// blamed for its neighbour.</summary>
+    internal static bool LooksUnreadable(string spokenWords)
+    {
+        foreach (var word in spokenWords.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            // Real English words that legitimately break the rules above.
+            if (word is "away" or "way" or "always" or "anyway" or "runway" or "hallway" or
+                "doorway" or "highway" or "walkway" or "skiing" or "baa")
+            {
+                continue;
+            }
+            if (UnreadableSpelling.IsMatch(word))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /// <summary>Whether a tagged line is the same line respelled for an
     /// accent rather than reworded.  "I'm going to check" → "Ah'm gonna
