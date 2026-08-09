@@ -466,6 +466,11 @@ public partial class MainWindow : Window
         var accent = PlayerAccentCombo.SelectedItem as Accent ?? Accents.Get(Accents.Default);
         const string sample = "I'm not going to ask you again. Put the gun down and walk away.";
 
+        // Read every control up front: the synthesis call runs on a worker
+        // thread, and WPF controls may only be touched on the UI thread.
+        var voice = PlayerVoiceCombo.Text;
+        var imperfection = (int)Math.Round(AccentImperfectionSlider.Value);
+
         PlayerAccentResult.Text = "synthesizing preview…";
         try
         {
@@ -476,7 +481,7 @@ public partial class MainWindow : Window
                 var tagged = await inworld.AutoTagDetailedAsync(
                     sample, "PlayerVoiceMale01", true, settings, CancellationToken.None,
                     $"accent-preview/{accent.Id}/{_testTakeCounter++}",
-                    accent, (int)Math.Round(AccentImperfectionSlider.Value));
+                    accent, imperfection);
                 line = tagged.Text;
                 if (tagged.RouterError is not null)
                 {
@@ -490,7 +495,7 @@ public partial class MainWindow : Window
                 return;
             }
 
-            var raw = await Task.Run(() => provider.SynthesizeAsync(line, PlayerVoiceCombo.Text, settings, CancellationToken.None));
+            var raw = await Task.Run(() => provider.SynthesizeAsync(line, voice, settings, CancellationToken.None));
             _preview.Play(Server.Audio.AudioPipeline.NormalizeToGameWav(raw));
             PlayerAccentResult.Text = $"{accent.DisplayName} → {line}";
         }
