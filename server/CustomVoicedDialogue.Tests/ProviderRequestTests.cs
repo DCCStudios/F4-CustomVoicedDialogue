@@ -1,5 +1,6 @@
 using System.Text.Json;
 using CustomVoicedDialogue.Server.Providers;
+using CustomVoicedDialogue.Server.VoiceMapping;
 
 namespace CustomVoicedDialogue.Tests;
 
@@ -309,6 +310,92 @@ public class ProviderRequestTests
         Assert.Empty(InworldProvider.MissingActionWords("*humming and whistling*", "[hums then whistles a tune] Hmm, fwee."));
         Assert.Empty(InworldProvider.MissingActionWords("*whistles softly*", "[whistling quietly] Fwee."));
         Assert.Empty(InworldProvider.MissingActionWords("No actions here.", "[calm] No actions here."));
+    }
+
+    [Fact]
+    public void Accent_RespellingIsAcceptedButRewritingIsNot()
+    {
+        // A respelling of the same line is what an accent produces.
+        Assert.True(InworldProvider.IsPlausibleRespelling(
+            "i'm going to check the settlement",
+            "ah'm gonna check the settlement"));
+        Assert.True(InworldProvider.IsPlausibleRespelling(
+            "what are you doing out here",
+            "wha' are ye doin' oot here"));
+        Assert.True(InworldProvider.IsPlausibleRespelling(
+            "put the gun down and walk away",
+            "pu' the gun dahn an' walk away"));
+
+        // A different sentence is a rewrite, not an accent.
+        Assert.False(InworldProvider.IsPlausibleRespelling(
+            "i'm going to check the settlement",
+            "let me take a look at the town"));
+        // Content added or dropped is not a respelling either.
+        Assert.False(InworldProvider.IsPlausibleRespelling(
+            "i'm going to check the settlement",
+            "ah'm gonna check the settlement and then ah'll head back to sanctuary right after"));
+        Assert.False(InworldProvider.IsPlausibleRespelling("hello there friend", ""));
+    }
+
+    [Theory]
+    // Real tagging-model output captured against the live router, so the
+    // guard is proven against what accents actually produce rather than
+    // against invented examples.
+    [InlineData("ah'm not goin' tah ask yew again put the gun down an' walk away")]      // Southern
+    [InlineData("aym no' gonny ask ye again put th' gun doon an' walk awa'")]            // Scottish
+    [InlineData("ah'm no' gaun tae ask ye again put th' gun doon an' walk awa'")]        // Scottish, heavier
+    [InlineData("i'm nahht goin' to ask yuh again put the gun dahn and wahk away")]      // Boston
+    [InlineData("ai'm not goin' to ask yuu again put the gun daown and walk away")]      // Mexican
+    [InlineData("i'm na' goin' to ask yew again put the gun down an' walk away")]        // Cockney
+    [InlineData("i'm no' gaunna ask ye again put the gun doon and walk awa'")]           // Scottish, slipping
+    public void Accent_RealModelOutputSurvivesTheGuard(string respelled)
+    {
+        const string original = "i'm not going to ask you again put the gun down and walk away";
+        Assert.True(
+            InworldProvider.IsPlausibleRespelling(original, respelled),
+            $"guard rejected genuine accent output: {respelled}");
+    }
+
+    [Fact]
+    public void Accent_SlipsAreDeterministicAndScaleWithImperfection()
+    {
+        // The same line always performs the same way, or the audio cache
+        // would serve a different take than the one it keyed.
+        Assert.Equal(
+            Accents.LineSlips("Sound\\Voice\\Fallout4.esm\\PlayerVoiceMale01\\0001F5FF_1.wav", 50),
+            Accents.LineSlips("Sound\\Voice\\Fallout4.esm\\PlayerVoiceMale01\\0001F5FF_1.wav", 50));
+
+        // Zero never slips; higher settings slip more often, but even 100
+        // leaves most of the accent intact rather than removing it.
+        var keys = Enumerable.Range(0, 400).Select(i => $"line-{i}").ToList();
+        Assert.All(keys, key => Assert.False(Accents.LineSlips(key, 0)));
+
+        var atFifteen = keys.Count(key => Accents.LineSlips(key, 15));
+        var atFifty = keys.Count(key => Accents.LineSlips(key, 50));
+        var atHundred = keys.Count(key => Accents.LineSlips(key, 100));
+        Assert.True(atFifteen < atFifty, $"15% ({atFifteen}) should slip less than 50% ({atFifty})");
+        Assert.True(atFifty < atHundred, $"50% ({atFifty}) should slip less than 100% ({atHundred})");
+        Assert.InRange(atHundred / (double)keys.Count, 0.5, 0.7);
+    }
+
+    [Fact]
+    public void Accent_CatalogueIsWellFormed()
+    {
+        Assert.Equal(Accents.Default, Accents.All[0].Id);
+        Assert.True(Accents.All[0].IsNeutral);
+        // The neutral default must add no direction at all.
+        Assert.Equal("", Accents.All[0].Guidance);
+        // Every other accent needs real phonetic direction to be worth having.
+        Assert.All(Accents.All.Skip(1), accent =>
+        {
+            Assert.False(accent.IsNeutral);
+            Assert.True(accent.Guidance.Length > 60, $"{accent.Id} guidance is too thin");
+        });
+        Assert.Equal(Accents.All.Count, Accents.All.Select(a => a.Id).Distinct().Count());
+        // Unknown or missing ids fall back to neutral rather than throwing.
+        Assert.True(Accents.Get("nonsense").IsNeutral);
+        Assert.True(Accents.Get(null).IsNeutral);
+        Assert.Equal("scottish", Accents.Get("SCOTTISH").Id);
     }
 
     [Fact]

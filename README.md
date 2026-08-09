@@ -36,6 +36,7 @@ themselves.
 - [In-game settings menu](#in-game-settings-menu)
 - [TTS providers](#tts-providers)
 - [Emotion auto-tagging (Inworld)](#emotion-auto-tagging-inworld)
+- [Accents](#accents)
 - [How a line gets its voice](#how-a-line-gets-its-voice)
 - [Mod compatibility](#mod-compatibility)
 - [Game version support](#game-version-support)
@@ -59,6 +60,9 @@ themselves.
 - Automatic, deterministic voice assignment per NPC voice type, with a
   per-voice-type override grid. The same NPC keeps the same voice across
   sessions.
+- **Accents** — 17 of them, applied by respelling each line phonetically so
+  the voice actually speaks with the accent, with a slider for how much the
+  accent slips (see [Accents](#accents)).
 
 **Timing and playback**
 - Dialogue holds for the length of the generated line, then advances — no
@@ -308,6 +312,56 @@ with the content of the line instead of being read flat.
   (slowly, drawn-out, hesitant, weary…) genuinely stretch delivery, so they
   are reserved for lines whose impact needs them.
 - `tag_model` selects the tagging model. Cheap models are fine here.
+
+---
+
+## Accents
+
+Any voice can be performed with an accent, set on the **Player Voice** tab
+for your character and per voice type in the **NPC Voices** grid. The
+default, **American (neutral)**, adds nothing at all and leaves lines
+exactly as written.
+
+Accents work by **respelling the line phonetically before synthesis** —
+"I'm not going to ask you again" becomes "Ah'm no' gaun tae ask ye again"
+for Scottish — so the voice genuinely produces the sound. Simply naming an
+accent in a steering tag tends to produce a caricature or nothing at all.
+
+| | |
+|---|---|
+| **American** | neutral (default), Southern, Deep South, Boston / New England, New York, Mid-Atlantic (1940s radio) |
+| **British Isles** | Received Pronunciation (posh), Cockney, Northern England, Scottish, Welsh, Irish |
+| **Other** | Spanish (Mexican), Australian, Russian, French, German, Italian |
+
+Boston and Mid-Atlantic are the two that sit most naturally in the
+Commonwealth — one is where the game is set, the other is the 1940s
+newsreel diction the whole setting is built on.
+
+### Accent imperfection
+
+A slider (default 15 %) controlling how often a line is performed with the
+accent easing off. Real speakers are not perfectly consistent, and a
+flawless accent on every single line sounds synthetic. At 0 every line is
+performed identically; higher values scatter lighter lines through a
+conversation, where only a word or two carries the accent. Even at 100 the
+accent wobbles rather than disappearing.
+
+Which lines slip is derived from the line's own identity, so a given line
+always performs the same way — the audio cache depends on that.
+
+### Notes and limits
+
+- Requires the **Inworld** provider with `inworld-tts-2` and auto-tagging
+  on; it runs in the same pass as emotion tagging, so it costs nothing
+  extra.
+- The spoken words never change — only their spelling. A guard compares the
+  respelling against the original and falls back to the plain line if the
+  model rewrites rather than respells it.
+- Quality varies by accent and line. Heavier accents (Scottish, Southern,
+  Boston) come through most reliably; subtler ones are lighter. This is
+  steering, not a guarantee.
+- Changing an accent or the imperfection level regenerates the affected
+  lines automatically.
 
 ---
 

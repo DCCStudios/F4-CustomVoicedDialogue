@@ -84,7 +84,12 @@ public sealed class SynthesisService
         var voice = string.IsNullOrEmpty(_config.PlayerVoice)
             ? settings.Get("voice", settings.Get("voiceid", ""))
             : _config.PlayerVoice;
-        return Fingerprint($"player|{provider.Id.ToLowerInvariant()}|{voice}|{settings.CanonicalHash()}");
+        // The accent only joins the identity once one is actually in use, so
+        // adding the feature does not invalidate everybody's existing audio.
+        var accent = Accents.Get(_config.PlayerAccent);
+        var accentPart = accent.IsNeutral ? "" : $"|{accent.Id}|{_config.AccentImperfection}";
+        return Fingerprint(
+            $"player|{provider.Id.ToLowerInvariant()}|{voice}|{settings.CanonicalHash()}{accentPart}");
     }
 
     /// <summary>Same idea for NPC lines: provider, per-voice-type override
@@ -104,7 +109,16 @@ public sealed class SynthesisService
                 .Where(pair => !string.IsNullOrEmpty(pair.Value))
                 .OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
                 .Select(pair => $"{pair.Key.ToLowerInvariant()}={pair.Value}"));
-        return Fingerprint($"npc|{provider.Id.ToLowerInvariant()}|{overrides}|{settings.CanonicalHash()}");
+        var accents = string.Join(
+            "\n",
+            _config.NpcAccentOverrides
+                .Where(pair => !string.IsNullOrEmpty(pair.Value) && !Accents.Get(pair.Value).IsNeutral)
+                .OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(pair => $"{pair.Key.ToLowerInvariant()}={pair.Value}"));
+        // As above: no accents configured, no change to existing audio.
+        var accentPart = accents.Length == 0 ? "" : $"|{accents}|{_config.AccentImperfection}";
+        return Fingerprint(
+            $"npc|{provider.Id.ToLowerInvariant()}|{overrides}|{settings.CanonicalHash()}{accentPart}");
     }
 
     private static string Fingerprint(string canonical) =>
@@ -247,6 +261,20 @@ public sealed class SynthesisService
         });
     }
 
+    /// <summary>The accent a line is performed in: the player's own for
+    /// player lines, otherwise the override set for that NPC voice type
+    /// (unset voice types stay neutral).</summary>
+    public Accent ResolveAccent(bool isPlayer, string voiceType)
+    {
+        if (isPlayer)
+        {
+            return Accents.Get(_config.PlayerAccent);
+        }
+        return !string.IsNullOrEmpty(voiceType) && _config.NpcAccentOverrides.TryGetValue(voiceType, out var accentId)
+            ? Accents.Get(accentId)
+            : Accents.Get(Accents.Default);
+    }
+
     private async Task<JobStatus> RunJobAsync(string text, string voicePath, string voiceType, bool isPlayer)
     {
         var startedAt = DateTimeOffset.Now;
@@ -271,7 +299,9 @@ public sealed class SynthesisService
             var textForSynthesis = text;
             if (provider is InworldProvider inworldProvider)
             {
-                textForSynthesis = await inworldProvider.AutoTagAsync(text, voiceType, isPlayer, settings, CancellationToken.None, voicePath);
+                textForSynthesis = await inworldProvider.AutoTagAsync(
+                    text, voiceType, isPlayer, settings, CancellationToken.None, voicePath,
+                    ResolveAccent(isPlayer, voiceType), _config.AccentImperfection);
             }
             var enriched = string.Equals(textForSynthesis, text, StringComparison.Ordinal) ? null : textForSynthesis;
 

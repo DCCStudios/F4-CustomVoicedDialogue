@@ -29,6 +29,19 @@ public sealed class AppConfig
     /// use deterministic auto-assignment.</summary>
     public Dictionary<string, string> NpcVoiceOverrides { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Accent id the player's lines are performed in ("american"
+    /// is the neutral default and adds no direction at all).</summary>
+    public string PlayerAccent { get; set; } = VoiceMapping.Accents.Default;
+
+    /// <summary>Accent id per NPC voice type; unlisted voice types are
+    /// neutral.</summary>
+    public Dictionary<string, string> NpcAccentOverrides { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>How often an accent slips (0–100).  Real speakers are not
+    /// perfectly consistent, so a little wobble sounds more human than a
+    /// flawless one; 0 performs every line identically.</summary>
+    public int AccentImperfection { get; set; } = 15;
+
     public bool StartServerOnLaunch { get; set; } = true;
     public bool StartMinimized { get; set; }
     public bool CheckForUpdates { get; set; } = true;

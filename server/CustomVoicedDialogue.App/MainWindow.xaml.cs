@@ -22,6 +22,7 @@ public partial class MainWindow : Window
         public string VoiceType { get; set; } = "";
         public string AutoVoice { get; set; } = "";
         public string Override { get; set; } = "";
+        public string Accent { get; set; } = Accents.Default;
     }
 
     public sealed class HistoryRow
@@ -91,6 +92,7 @@ public partial class MainWindow : Window
                 _ = CheckUpdatesAsync(silent: true);
             }
             RefreshStatus();
+            LoadAccentControls();
             _ = RefreshVoicesAsync();
         };
         Closed += (_, _) => _preview.Dispose();
@@ -431,6 +433,73 @@ public partial class MainWindow : Window
         PlayerVoiceResult.Text = $"saved: {App.Config.PlayerVoice}";
     }
 
+    // ---- accent ----------------------------------------------------------
+
+    private void LoadAccentControls()
+    {
+        PlayerAccentCombo.ItemsSource = Accents.All;
+        PlayerAccentCombo.SelectedItem = Accents.Get(App.Config.PlayerAccent);
+        AccentImperfectionSlider.Value = Math.Clamp(App.Config.AccentImperfection, 0, 100);
+    }
+
+    private void OnSavePlayerAccent(object sender, RoutedEventArgs e)
+    {
+        var accent = PlayerAccentCombo.SelectedItem as Accent ?? Accents.Get(Accents.Default);
+        App.Config.PlayerAccent = accent.Id;
+        App.Config.AccentImperfection = (int)Math.Round(AccentImperfectionSlider.Value);
+        App.Config.Save();
+        PlayerAccentResult.Text =
+            $"saved: {accent.DisplayName}, {App.Config.AccentImperfection}% imperfection — affected lines regenerate automatically";
+    }
+
+    /// <summary>Speaks a sample line exactly as the game would get it: run
+    /// through the tagger with the selected accent, so what you hear is what
+    /// the accent actually does rather than a description of it.</summary>
+    private async void OnPreviewPlayerAccent(object sender, RoutedEventArgs e)
+    {
+        var provider = App.Providers.Get(App.Config.Provider);
+        if (provider is null)
+        {
+            PlayerAccentResult.Text = "configure a provider first";
+            return;
+        }
+        var accent = PlayerAccentCombo.SelectedItem as Accent ?? Accents.Get(Accents.Default);
+        const string sample = "I'm not going to ask you again. Put the gun down and walk away.";
+
+        PlayerAccentResult.Text = "synthesizing preview…";
+        try
+        {
+            var settings = App.Config.SettingsFor(provider);
+            var line = sample;
+            if (provider is InworldProvider inworld)
+            {
+                var tagged = await inworld.AutoTagDetailedAsync(
+                    sample, "PlayerVoiceMale01", true, settings, CancellationToken.None,
+                    $"accent-preview/{accent.Id}/{_testTakeCounter++}",
+                    accent, (int)Math.Round(AccentImperfectionSlider.Value));
+                line = tagged.Text;
+                if (tagged.RouterError is not null)
+                {
+                    PlayerAccentResult.Text = $"✗ tagging failed: {tagged.RouterError}";
+                    return;
+                }
+            }
+            else
+            {
+                PlayerAccentResult.Text = "accents need the Inworld provider (inworld-tts-2 with auto-tagging on)";
+                return;
+            }
+
+            var raw = await Task.Run(() => provider.SynthesizeAsync(line, PlayerVoiceCombo.Text, settings, CancellationToken.None));
+            _preview.Play(Server.Audio.AudioPipeline.NormalizeToGameWav(raw));
+            PlayerAccentResult.Text = $"{accent.DisplayName} → {line}";
+        }
+        catch (Exception exception)
+        {
+            PlayerAccentResult.Text = $"✗ {exception.Message}";
+        }
+    }
+
     // ---- NPC voices tab --------------------------------------------------
 
     private void RefreshNpcGrid()
@@ -461,11 +530,15 @@ public partial class MainWindow : Window
         // Player voice types are not NPCs — the Player Voice tab governs them.
         voiceTypes.RemoveWhere(voiceType => voiceType.StartsWith("PlayerVoice", StringComparison.OrdinalIgnoreCase));
 
+        // The accent dropdown offers the same catalogue on every row.
+        NpcAccentColumn.ItemsSource = Accents.All;
+
         NpcGrid.ItemsSource = voiceTypes.Select(voiceType => new NpcRow
         {
             VoiceType = voiceType,
             AutoVoice = _voices.Count > 0 ? mapper.ResolveVoice(false, voiceType, _voices) : "(refresh voices)",
             Override = App.Config.NpcVoiceOverrides.TryGetValue(voiceType, out var value) ? value : "",
+            Accent = App.Config.NpcAccentOverrides.TryGetValue(voiceType, out var accent) ? accent : Accents.Default,
         }).ToList();
     }
 
@@ -486,6 +559,16 @@ public partial class MainWindow : Window
             else
             {
                 App.Config.NpcVoiceOverrides[row.VoiceType] = row.Override.Trim();
+            }
+
+            // Neutral is the default, so it is stored by absence.
+            if (string.IsNullOrWhiteSpace(row.Accent) || row.Accent == Accents.Default)
+            {
+                App.Config.NpcAccentOverrides.Remove(row.VoiceType);
+            }
+            else
+            {
+                App.Config.NpcAccentOverrides[row.VoiceType] = row.Accent;
             }
         }
         App.Config.Save();
