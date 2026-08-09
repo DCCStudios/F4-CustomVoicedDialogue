@@ -332,7 +332,7 @@ public class ProviderRequestTests
 
         // The same words read differently in a different accent, and
         // capitalized forms still match.
-        Assert.Contains("/duːn/", AccentLexicon.Apply(Accents.Get("scottish"), "Down! Get down!", "k", 0));
+        Assert.Contains("/dʉːn/", AccentLexicon.Apply(Accents.Get("scottish"), "Down! Get down!", "k", 0));
         // Neutral changes nothing at all.
         Assert.Equal(line, AccentLexicon.Apply(Accents.Get(null), line, "key-1", 0));
     }
@@ -367,7 +367,7 @@ public class ProviderRequestTests
         // A sample that touches at least one lexicon word of every accent.
         const string sample = "I think my friend will take the house down that road, but there's nothing better going now, right?";
         var word = new System.Text.RegularExpressions.Regex(@"^[a-z']+$");
-        var ipa = new System.Text.RegularExpressions.Regex(@"^[a-zæɑɒɔəɛɜɪʊʌŋθðʃʒɡɹɾːˈˌ]+$");
+        var ipa = new System.Text.RegularExpressions.Regex(@"^[a-zæɑɒɔəɛɜɪʊʌʉɐŋθðʃʒɡɹɾʍʔːˈˌ]+$");
 
         Assert.False(AccentLexicon.Has(Accents.Get(null)));
         Assert.All(Accents.All.Skip(1), accent =>
@@ -382,7 +382,7 @@ public class ProviderRequestTests
         });
 
         // Rhotic accents must not carry the non-rhotic r-deletions.
-        foreach (var id in new[] { "southern", "deep-south", "scottish", "irish" })
+        foreach (var id in new[] { "southern", "deep-south", "scottish", "glaswegian", "irish" })
         {
             Assert.DoesNotContain(AccentLexicon.Entries(Accents.Get(id)), e => e.Key == "car");
         }
@@ -403,8 +403,14 @@ public class ProviderRequestTests
     [InlineData("british-rp", "forgot", "fəˈɡɒt")]         // non-rhotic + LOT
     [InlineData("british-rp", "father", "ˈfɑːðə")]         // PALM exception
     [InlineData("british-rp", "chances", "ˈtʃɑːnsəz")]     // BATH
-    [InlineData("scottish", "found", "fuːnd")]             // MOUTH, rhotic kept
+    [InlineData("scottish", "found", "fʉːnd")]             // MOUTH on fronted ʉ, rhotic kept
     [InlineData("scottish", "raider", "ˈɾeːdəɾ")]          // tapped r
+    [InlineData("scottish", "good", "ɡʉd")]                // FOOT-GOOSE merger
+    [InlineData("scottish", "start", "staɾt")]             // START keeps plain a
+    [InlineData("scottish", "right", "ɾʌit")]              // short PRICE before voiceless
+    [InlineData("scottish", "talk", "tɔk")]                // LOT-THOUGHT on short ɔ
+    [InlineData("glaswegian", "water", "ˈwɔʔəɾ")]          // glottal t
+    [InlineData("glaswegian", "better", "ˈbɛʔəɾ")]
     [InlineData("boston", "harbor", "ˈhɑːbə")]
     [InlineData("deep-south", "outside", "ˈæʊtˈsɑːd")]     // CMUdict marks both syllables primary
     [InlineData("southern", "time", "tɑːm")]               // matches the hand entry
@@ -412,6 +418,13 @@ public class ProviderRequestTests
     [InlineData("german", "javelin", "ˈtʃɛvələn")]         // dʒ → tʃ, æ → ɛ
     [InlineData("spanish-mexican", "strange", "esˈtɾeɪndʒ")] // tapped cluster r
     [InlineData("russian", "rifle", "ˈraɪfəl")]            // trilled r
+    [InlineData("australian", "party", "ˈpɑːɾiː")]         // non-rhotic + flapped t
+    [InlineData("australian", "getting", "ˈɡeɾɪn")]        // DRESS raised, flap, -in
+    [InlineData("australian", "caught", "koːt")]           // THOUGHT raised
+    [InlineData("australian", "go", "ɡəʉ")]                // GOAT centres onto fronted GOOSE
+    [InlineData("australian", "school", "skʉːl")]          // GOOSE fronts
+    [InlineData("australian", "gun", "ɡɐn")]               // STRUT central
+    [InlineData("australian", "past", "pɑːst")]            // fricative BATH
     public void Accent_PhonologyDerivesUnlistedWords(string accentId, string word, string expected)
     {
         Assert.Equal(expected, AccentPhonology.Derive(Accents.Get(accentId), word));
@@ -426,6 +439,11 @@ public class ProviderRequestTests
         // BATH must not overreach: fricative-before-vowel and nd stay flat.
         Assert.Null(AccentPhonology.Derive(Accents.Get("british-rp"), "classic"));
         Assert.Null(AccentPhonology.Derive(Accents.Get("british-rp"), "hand"));
+        // Australian BATH is fricative-only: the nasal words RP broadens
+        // keep their flat a (only the vowel differs from GA, so the whole
+        // word may still derive — the æ must survive).
+        Assert.DoesNotContain("ɑː", AccentPhonology.Derive(Accents.Get("australian"), "chance") ?? "");
+        Assert.DoesNotContain("ɑː", AccentPhonology.Derive(Accents.Get("australian"), "plant") ?? "");
         // Function words are never derived (their citation forms would
         // fight sentence rhythm); the hand lexicon overrides them instead.
         Assert.Null(AccentPhonology.Derive(cockney, "the"));
@@ -438,8 +456,12 @@ public class ProviderRequestTests
         // Where a rule fully covers a hand-written word the two layers
         // must agree — the overrides only exist for the irregulars.
         Assert.Equal("daːn", AccentPhonology.Derive(Accents.Get("british-cockney"), "down"));
-        Assert.Equal("duːn", AccentPhonology.Derive(Accents.Get("scottish"), "down"));
+        Assert.Equal("dʉːn", AccentPhonology.Derive(Accents.Get("scottish"), "down"));
         Assert.Equal("wɔːn", AccentPhonology.Derive(Accents.Get("british-rp"), "worn"));
+        // PRICE stays long word-finally and before voiced fricatives
+        // (Aitken's law) — and why still gets its voiceless wh.
+        Assert.DoesNotContain("ʌi", AccentPhonology.Derive(Accents.Get("scottish"), "five") ?? "");
+        Assert.Equal("ʍaɪ", AccentPhonology.Derive(Accents.Get("scottish"), "why"));
 
         // Southern stays milder than Deep South on the same word.
         Assert.Null(AccentPhonology.Derive(Accents.Get("southern"), "right"));

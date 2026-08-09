@@ -60,7 +60,7 @@ themselves.
 - Automatic, deterministic voice assignment per NPC voice type, with a
   per-voice-type override grid. The same NPC keeps the same voice across
   sessions.
-- **Accents** — 17 of them, applied as exact IPA pronunciations by a
+- **Accents** — 18 of them, applied as exact IPA pronunciations by a
   phonological rule engine (any English word) plus hand-written lexicons
   for the irregulars, so the voice actually speaks with the accent, with a
   slider for how much the accent slips (see [Accents](#accents)).
@@ -349,7 +349,7 @@ models mangle spellings.)
 | | |
 |---|---|
 | **American** | neutral (default), Southern, Deep South, Boston / New England, New York, Mid-Atlantic (1940s radio) |
-| **British Isles** | Received Pronunciation (posh), Cockney, Northern England, Scottish, Welsh, Irish |
+| **British Isles** | Received Pronunciation (posh), Cockney, Northern England, Scottish, Glaswegian, Welsh, Irish |
 | **Other** | Spanish (Mexican), Australian, Russian, French, German, Italian |
 
 Boston and Mid-Atlantic are the two that sit most naturally in the

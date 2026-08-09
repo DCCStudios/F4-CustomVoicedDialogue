@@ -96,11 +96,11 @@ internal static class AccentPhonology
                 NonRhotic(p);
                 break;
             case "scottish":
-                Vowel(p, "aʊ", "uː");
-                Vowel(p, "eɪ", "eː");
-                Vowel(p, "oʊ", "oː");
-                IngToIn(p);
-                TapR(p);
+                ScotsCore(word, p);
+                break;
+            case "glaswegian":
+                ScotsCore(word, p);
+                GlottalT(p);
                 break;
             case "welsh":
                 Vowel(p, "eɪ", "eː");
@@ -127,10 +127,25 @@ internal static class AccentPhonology
                 RomanceR(p);
                 break;
             case "australian":
+                // General Australian, per Cox & Evans' descriptions: the
+                // diphthong chain shift (PRICE backs, FACE and MOUTH
+                // front-open, GOAT centres onto the fronted GOOSE),
+                // THOUGHT/NORTH raised to a high long o, DRESS raised,
+                // STRUT central, BATH broad before fricatives only
+                // (past → ɑː, but chance stays flat, unlike RP), and
+                // American-style t-flapping (better → beɾə).
                 Vowel(p, "aɪ", "ɑɪ");
                 Vowel(p, "eɪ", "æɪ");
-                Vowel(p, "aʊ", "æʊ");
+                Vowel(p, "aʊ", "æɔ");
+                Vowel(p, "oʊ", "əʉ");
+                Vowel(p, "uː", "ʉː");
+                FricativeBath(p);
                 NonRhotic(p);
+                Vowel(p, "ɔː", "oː");
+                Vowel(p, "ɛ", "e");
+                Vowel(p, "ʌ", "ɐ");
+                FlapT(p);
+                IngToIn(p);
                 break;
             case "russian":
                 Sound(p, "w", "v");
@@ -276,6 +291,42 @@ internal static class AccentPhonology
         "father", "calm", "palm", "ma", "pa", "mama", "papa", "drama", "spa", "llama",
     };
 
+    /// <summary>The Australian half of BATH: æ broadens before a
+    /// syllable-final voiceless fricative (past, ask, laugh) but stays
+    /// flat before the nasal clusters RP broadens (chance, dance,
+    /// plant).</summary>
+    private static void FricativeBath(List<Phone> p)
+    {
+        for (var i = 0; i < p.Count; i++)
+        {
+            if (!p[i].IsVowel || p[i].Sound != "æ" || i + 1 >= p.Count)
+            {
+                continue;
+            }
+            var next = p[i + 1].Sound;
+            var afterNext = i + 2 < p.Count ? p[i + 2] : (Phone?)null;
+            if (next is "s" or "f" or "θ" && (afterNext is null || !afterNext.Value.IsVowel))
+            {
+                p[i] = p[i] with { Sound = "ɑː" };
+            }
+        }
+    }
+
+    /// <summary>American-style t-flapping (shared by Australian English):
+    /// a t between a vowel and an unstressed vowel becomes the tap
+    /// (better → beɾə, party → pɑːɾiː).</summary>
+    private static void FlapT(List<Phone> p)
+    {
+        for (var i = 1; i < p.Count - 1; i++)
+        {
+            if (p[i].Sound == "t" && p[i - 1].IsVowel &&
+                p[i + 1] is { IsVowel: true, Stress: 0 })
+            {
+                p[i] = p[i] with { Sound = "ɾ" };
+            }
+        }
+    }
+
     /// <summary>Cockney th-fronting: θ becomes f anywhere; ð becomes v
     /// except word-initially (this/that keep their th).</summary>
     private static void ThFronting(List<Phone> p)
@@ -376,6 +427,97 @@ internal static class AccentPhonology
         }
     }
 
+    /// <summary>Standard Scottish English, per Wells and Stuart-Smith's
+    /// descriptions: rhotic with tapped r's; FOOT and GOOSE merge on the
+    /// famously fronted ʉ and Scots MOUTH joins them (hoose, doon);
+    /// LOT, THOUGHT and PALM merge on a short ɔ while START and TRAP/BATH
+    /// keep a plain a; FACE and GOAT are pure long monophthongs; FLEECE is
+    /// clipped short; PRICE takes the Scottish Vowel Length Rule's short
+    /// ʌi before voiceless sounds but stays long finally and before voiced
+    /// fricatives (right → ɾʌit, why stays ʍaɪ); and wine and whine are
+    /// still distinct — wh carries the voiceless ʍ.</summary>
+    private static void ScotsCore(string word, List<Phone> p)
+    {
+        WhVoiceless(word, p);
+        Vowel(p, "aʊ", "ʉː");
+        Vowel(p, "uː", "ʉː");
+        Vowel(p, "ʊ", "ʉ");
+        Vowel(p, "iː", "i");
+        Vowel(p, "eɪ", "eː");
+        Vowel(p, "oʊ", "oː");
+        Vowel(p, "æ", "a");
+        LotPalmThought(word, p);
+        ScotsPrice(p);
+        IngToIn(p);
+        TapR(p);
+    }
+
+    /// <summary>The Scottish three-way collapse of the open back vowels:
+    /// LOT and THOUGHT merge on short ɔ, while PALM words and START
+    /// syllables keep a plain a (got → ɡɔt, talk → tɔk, father → faðəɾ,
+    /// start → staɾt).</summary>
+    private static void LotPalmThought(string word, List<Phone> p)
+    {
+        var palm = PalmWords.Contains(word);
+        for (var i = 0; i < p.Count; i++)
+        {
+            if (!p[i].IsVowel)
+            {
+                continue;
+            }
+            if (p[i].Sound == "ɑː")
+            {
+                var beforeR = i + 1 < p.Count && p[i + 1].Sound == "ɹ";
+                p[i] = p[i] with { Sound = palm || beforeR ? "a" : "ɔ" };
+            }
+            else if (p[i].Sound == "ɔː")
+            {
+                p[i] = p[i] with { Sound = "ɔ" };
+            }
+        }
+    }
+
+    /// <summary>Aitken's law for PRICE: short ʌi before a voiceless or
+    /// plain-stop consonant, long aɪ word-finally and before voiced
+    /// fricatives or r.</summary>
+    private static void ScotsPrice(List<Phone> p)
+    {
+        for (var i = 0; i < p.Count; i++)
+        {
+            if (p[i].Sound == "aɪ" && i + 1 < p.Count && !p[i + 1].IsVowel &&
+                p[i + 1].Sound is not ("v" or "ð" or "z" or "ʒ" or "ɹ" or "ɾ" or "r"))
+            {
+                p[i] = p[i] with { Sound = "ʌi" };
+            }
+        }
+    }
+
+    /// <summary>Scots keeps wine and whine distinct: a spelled wh- onset
+    /// is the voiceless ʍ ("who" starts with h and is untouched).</summary>
+    private static void WhVoiceless(string word, List<Phone> p)
+    {
+        if (word.StartsWith("wh", StringComparison.Ordinal) &&
+            p.Count > 0 && p[0].Sound == "w")
+        {
+            p[0] = p[0] with { Sound = "ʍ" };
+        }
+    }
+
+    /// <summary>Glaswegian t-glottaling: a t after a vowel becomes the
+    /// glottal catch word-finally and between vowels (water → wɔʔəɾ,
+    /// get → ɡɛʔ).</summary>
+    private static void GlottalT(List<Phone> p)
+    {
+        for (var i = 1; i < p.Count; i++)
+        {
+            if (p[i].Sound == "t" && p[i - 1].IsVowel &&
+                (i == p.Count - 1 || p[i + 1].IsVowel))
+            {
+                p[i] = p[i] with { Sound = "ʔ" };
+            }
+        }
+    }
+
     // The three r's: ɹ is the English approximant (the default every
     // derived word gets), ɾ the alveolar tap, r the full trill.  Verified
     // live: Inworld renders ɹ identically to a plain word (envelope
@@ -460,6 +602,14 @@ internal static class AccentPhonology
         {
             return null;
         }
+        // This CMUdict release is cot-caught inconsistent: caught and
+        // bought are filed under the merged AA while thought and talk
+        // keep AO.  The THOUGHT words matter to several accents (RP ɔː,
+        // New York ɔə, Australian oː), so refile them.
+        if (ThoughtMisfiled.Contains(word))
+        {
+            arpabet = arpabet.Replace("AA", "AO");
+        }
         var phones = new List<Phone>();
         foreach (var token in arpabet.Split(' ', StringSplitOptions.RemoveEmptyEntries))
         {
@@ -502,6 +652,12 @@ internal static class AccentPhonology
         ["M"] = "m", ["N"] = "n", ["NG"] = "ŋ", ["P"] = "p", ["R"] = "ɹ",
         ["S"] = "s", ["SH"] = "ʃ", ["T"] = "t", ["TH"] = "θ", ["V"] = "v",
         ["W"] = "w", ["Y"] = "j", ["Z"] = "z", ["ZH"] = "ʒ",
+    };
+
+    private static readonly HashSet<string> ThoughtMisfiled = new(StringComparer.Ordinal)
+    {
+        "caught", "taught", "fought", "bought", "brought", "sought", "wrought",
+        "naught", "naughty", "slaughter", "daughter", "daughters",
     };
 
     private static readonly Lazy<Dictionary<string, string>> Dictionary = new(Load);

@@ -94,7 +94,7 @@ public static class AccentLexicon
     {
         switch (accentId)
         {
-            case "scottish" or "welsh":
+            case "scottish" or "glaswegian" or "welsh":
                 return ipa.Replace('r', 'ɾ');
             case "russian":
                 return ipa;  // plain r IS the trill symbol
@@ -174,6 +174,27 @@ public static class AccentLexicon
         ["nothing"] = "ˈnʌθɪn", ["something"] = "ˈsʌmθɪn", ["anything"] = "ˈɛniθɪn",
         ["looking"] = "ˈlʊkɪn", ["talking"] = "ˈtɔːkɪn", ["coming"] = "ˈkʌmɪn",
         ["waiting"] = "ˈweɪtɪn", ["trying"] = "ˈtrɑːɪn", ["morning"] = "ˈmɔːrnɪn",
+    };
+
+    // Standard Scottish English, rhotic with tapped r's: MOUTH and GOOSE
+    // sit on the fronted ʉ, FACE and GOAT are pure long vowels, been and
+    // was take their clipped Scots forms, and the wh words keep the
+    // voiceless ʍ (wine and whine are still different words there).
+    private static readonly Dictionary<string, string> Scottish = new(StringComparer.Ordinal)
+    {
+        ["house"] = "hʉːs", ["out"] = "ʉːt", ["about"] = "əˈbʉːt",
+        ["down"] = "dʉːn", ["now"] = "nʉː", ["town"] = "tʉːn",
+        ["around"] = "əˈrʉːnd", ["how"] = "hʉː",
+        ["day"] = "deː", ["take"] = "teːk", ["make"] = "meːk", ["say"] = "seː",
+        ["stay"] = "steː", ["name"] = "neːm", ["place"] = "pleːs",
+        ["face"] = "feːs", ["away"] = "əˈweː", ["again"] = "əˈɡeːn",
+        ["go"] = "ɡoː", ["no"] = "noː", ["know"] = "noː", ["home"] = "hoːm",
+        ["don't"] = "doːnt", ["road"] = "roːd", ["old"] = "oːld", ["told"] = "toːld",
+        ["going"] = "ˈɡoːɪn", ["nothing"] = "ˈnʌθɪn", ["something"] = "ˈsʌmθɪn",
+        ["morning"] = "ˈmɔrnɪn",
+        ["been"] = "bin", ["was"] = "wɪz",
+        ["new"] = "njʉː", ["news"] = "njʉːz",
+        ["what"] = "ʍɔt", ["when"] = "ʍɛn", ["where"] = "ʍɛr", ["why"] = "ʍaɪ",
     };
 
     private static readonly Dictionary<string, Dictionary<string, string>> Lexicons = new(StringComparer.OrdinalIgnoreCase)
@@ -289,22 +310,20 @@ public static class AccentLexicon
             ["been"] = "biːn", ["new"] = "njuː", ["news"] = "njuːz",
         }),
 
-        // Rhotic: every r stays, so no shared non-rhotic base.
-        ["scottish"] = new(StringComparer.Ordinal)
+        ["scottish"] = Scottish,
+
+        // Glasgow: everything Scottish, plus the patter — the glottal t's
+        // come from the rules; here live the Scots forms of the everyday
+        // words (the -nae negatives, nuhin, heid, aw, auld).
+        ["glaswegian"] = Merge(Scottish, new(StringComparer.Ordinal)
         {
-            ["house"] = "huːs", ["out"] = "uːt", ["about"] = "əˈbuːt",
-            ["down"] = "duːn", ["now"] = "nuː", ["town"] = "tuːn",
-            ["around"] = "əˈruːnd", ["how"] = "huː",
-            ["day"] = "deː", ["take"] = "teːk", ["make"] = "meːk", ["say"] = "seː",
-            ["stay"] = "steː", ["name"] = "neːm", ["place"] = "pleːs",
-            ["face"] = "feːs", ["away"] = "əˈweː", ["again"] = "əˈɡeːn",
-            ["go"] = "ɡoː", ["no"] = "noː", ["know"] = "noː", ["home"] = "hoːm",
-            ["don't"] = "doːnt", ["road"] = "roːd", ["old"] = "oːld", ["told"] = "toːld",
-            ["going"] = "ˈɡoːɪn", ["nothing"] = "ˈnʌθɪn", ["something"] = "ˈsʌmθɪn",
-            ["morning"] = "ˈmɔrnɪn",
-            ["been"] = "biːn", ["was"] = "wɪz",
-            ["new"] = "njuː", ["news"] = "njuːz",
-        },
+            ["no"] = "nɔː", ["all"] = "ɔː", ["old"] = "ɔːld",
+            ["can't"] = "ˈkanɪ", ["don't"] = "ˈdɪnɪ", ["didn't"] = "ˈdɪdnɪ",
+            ["wasn't"] = "ˈwɪznɪ", ["isn't"] = "ˈɪznɪ",
+            ["wouldn't"] = "ˈwʌdnɪ", ["couldn't"] = "ˈkʌdnɪ",
+            ["nothing"] = "ˈnʌhɪn", ["something"] = "ˈsʌmhɪn", ["anything"] = "ˈɛnihɪn",
+            ["head"] = "hid", ["dead"] = "did",
+        }),
 
         // Welsh is carried mostly by melody (the steering instruction);
         // the lexicon purifies the FACE and GOAT vowels, and Welsh English
@@ -348,9 +367,25 @@ public static class AccentLexicon
             ["day"] = "dæɪ", ["way"] = "wæɪ", ["say"] = "sæɪ", ["take"] = "tæɪk",
             ["make"] = "mæɪk", ["name"] = "næɪm", ["place"] = "plæɪs",
             ["late"] = "læɪt", ["mate"] = "mæɪt", ["wait"] = "wæɪt",
+            ["g'day"] = "ɡəˈdæɪ",
             ["time"] = "tɑɪm", ["like"] = "lɑɪk", ["right"] = "rɑɪt", ["night"] = "nɑɪt",
-            ["down"] = "dæʊn", ["now"] = "næʊ", ["out"] = "æʊt",
-            ["about"] = "əˈbæʊt", ["town"] = "tæʊn", ["how"] = "hæʊ", ["house"] = "hæʊs",
+            // MOUTH lands on æɔ, per Cox's measurements.
+            ["down"] = "dæɔn", ["now"] = "næɔ", ["out"] = "æɔt",
+            ["about"] = "əˈbæɔt", ["town"] = "tæɔn", ["how"] = "hæɔ", ["house"] = "hæɔs",
+            // GOAT function words the stoplist hides from the rules.
+            ["no"] = "nəʉ", ["so"] = "səʉ",
+            // SQUARE is a long monophthong (there → theeh).
+            ["there"] = "ðeː", ["where"] = "weː",
+            // NORTH/FORCE ride the raised long o, replacing the shared
+            // non-rhotic ɔː forms.
+            ["more"] = "moː", ["door"] = "doː", ["four"] = "foː",
+            ["your"] = "joː", ["sure"] = "ʃoː", ["worn"] = "woːn",
+            ["born"] = "boːn", ["corner"] = "ˈkoːnə",
+            // Flapped t and raised DRESS in the everyday words.
+            ["water"] = "ˈwoːɾə", ["better"] = "ˈbeɾə", ["never"] = "ˈnevə",
+            // BATH: broad before fricatives, and can't is the lexical
+            // exception that goes broad despite its nasal.
+            ["after"] = "ˈɑːftə", ["can't"] = "kɑːnt",
         }),
 
         ["russian"] = new(StringComparer.Ordinal)

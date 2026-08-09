@@ -51,7 +51,12 @@ public static class Accents
 
         new("scottish", "Scottish",
             "brisk and musical, with the pitch moving a lot and the r's " +
-            "rolled."),
+            "tapped."),
+
+        new("glaswegian", "Scottish — Glaswegian",
+            "fast, punchy Glasgow patter: clipped vowels, hard glottal " +
+            "catches on the t's, and the melody swinging wide inside " +
+            "every phrase."),
 
         new("welsh", "Welsh",
             "a lilting Welsh singsong — the melody rises and falls across " +
