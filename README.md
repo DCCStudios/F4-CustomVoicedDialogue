@@ -360,6 +360,20 @@ always performs the same way — the audio cache depends on that.
 - Quality varies by accent and line. Heavier accents (Scottish, Southern,
   Boston) come through most reliably; subtler ones are lighter. This is
   steering, not a guarantee.
+- **`tag_model` matters more for accents than for emotion.** Respelling a
+  whole line without losing a word is harder than adding a bracket, and the
+  cheapest models drop small words ("his coat *was* worn" → "his coat
+  worn"). `openai/gpt-4o-mini` (the default) handles it noticeably better
+  than `openai/gpt-4.1-nano`; if accents come out garbled, check this
+  setting first.
+- Each accent's direction covers rhoticity, its signature vowel shifts and
+  its consonant changes, plus how to spell the result so the synthesizer
+  reads it correctly — a final `n` stays one soft letter on a broadened
+  vowel (`down` → `daan`/`daown`/`doon`) rather than a hyphenated or
+  doubled one, which is what makes it land as a hard, over-pronounced `n`.
+  In non-rhotic accents the `r` is deleted from the spelling outright
+  (`worn` → `wawn`, `hard` → `hahd`), because a spelled `r` gets
+  pronounced.
 - Changing an accent or the imperfection level regenerates the affected
   lines automatically.
 

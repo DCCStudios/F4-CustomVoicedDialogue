@@ -214,6 +214,7 @@ public sealed class InworldProvider : ITtsProvider
         "are already there sound — never substitute a different word, add words, drop words, or " +
         "change the punctuation or meaning. Dialect contractions the accent naturally produces are " +
         "fine; dialect vocabulary is not. " +
+        VoiceMapping.Accents.RespellingCraft + " " +
         (slips
             // Concrete counts, because "keep it light" reads as a nuance a
             // small model will not act on — it returned the fully accented
