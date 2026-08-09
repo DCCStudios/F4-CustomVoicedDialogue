@@ -344,8 +344,13 @@ public class ProviderRequestTests
         Assert.Equal("Ask /mɐɪ ˈbɹʌðə əˈbaʊt ɪt təˈnɐɪt/.",
             AccentLexicon.Apply(Accents.Get("southern-grimes"), "Ask my brother about it tonight.", "k", 0));
         // Punctuation blocks the bridge — a comma keeps its natural pause.
-        Assert.Equal("/ˈwɔːlkəz/, all /ˈoʊvə sɛl blɑːːk siːː/.",
+        // …and a multi-word span carries no vowel holds (a hold anywhere
+        // inside one measured as a consistent extra pause; standalone
+        // held words measured clean).
+        Assert.Equal("/ˈwɔːlkəz/, all /ˈoʊvə sɛl blɑːk siː/.",
             AccentLexicon.Apply(Accents.Get("southern-grimes"), "Walkers, all over Cell block C.", "k", 0));
+        Assert.Equal("/swiːːt/. That's a /swiːːt/ deal.",
+            AccentLexicon.Apply(Accents.Get("southern-grimes"), "Sweet. That's a sweet deal.", "k", 0));
         // Neutral changes nothing at all.
         Assert.Equal(line, AccentLexicon.Apply(Accents.Get(null), line, "key-1", 0));
     }
@@ -494,7 +499,7 @@ public class ProviderRequestTests
         // third length mark measurably fragmented sentences into extra
         // pauses and was dropped), and — per the linguists — NO pen-pin
         // merger (general Southern does merge).
-        Assert.Equal("hɑːːɹd", AccentPhonology.Derive(Accents.Get("southern-grimes"), "hard"));
+        Assert.Null(AccentPhonology.Derive(Accents.Get("southern-grimes"), "hard"));
         Assert.Null(AccentPhonology.Derive(Accents.Get("southern-grimes"), "pen"));
         Assert.Null(AccentPhonology.Derive(Accents.Get("southern-grimes"), "ten"));
         Assert.Equal("pɪn", AccentPhonology.Derive(Accents.Get("southern"), "pen"));
@@ -519,18 +524,18 @@ public class ProviderRequestTests
         // words is restored — a bare held vowel into k reads as "wark".
         Assert.Equal("ˈtɔːlkɪn", AccentPhonology.Derive(Accents.Get("southern-grimes"), "talking"));
         Assert.Equal("tʃɔːlk", AccentPhonology.Derive(Accents.Get("southern-grimes"), "chalk"));
-        // Never fires on a word that never had the letter.
-        Assert.Equal("hɔːːk", AccentPhonology.Derive(Accents.Get("southern-grimes"), "hawk"));
-        // Only the vowel carrying a word's PRIMARY stress holds — a
-        // secondary-stressed or unstressed long vowel elsewhere in the
-        // same word stays at its natural length.  Measured on
-        // inworld-tts-2: packing every long vowel in a two-word merged
-        // span (democracy + anymore, 4 held vowels) produced an internal
-        // pause between the words in 2 of 4 identical calls; restricting
-        // the hold to only each word's stressed syllable (2 held vowels)
-        // brought that to 0 of 4.
-        Assert.Equal("dɪˈmɑːːkɹəsiː", AccentPhonology.Derive(Accents.Get("southern-grimes"), "democracy"));
-        Assert.Equal("ˌɛniːˈmɔːːɹ", AccentPhonology.Derive(Accents.Get("southern-grimes"), "anymore"));
+        // Never fires on a word that never had the letter — and with no l
+        // and no FLEECE/GOOSE vowel, hawk has no reason to derive at all.
+        Assert.Null(AccentPhonology.Derive(Accents.Get("southern-grimes"), "hawk"));
+        // The hold class narrowed to primary-stressed FLEECE/GOOSE after
+        // repeated measurements showed every wider variant (all long
+        // vowels; LOT/THOUGHT included; multiple holds per span)
+        // fragmenting sentences into pauses — so democracy and anymore,
+        // whose stressed vowels are LOT and THOUGHT, no longer derive at
+        // all, and "This isn't a democracy anymore." goes to the
+        // synthesizer completely plain.
+        Assert.Null(AccentPhonology.Derive(Accents.Get("southern-grimes"), "democracy"));
+        Assert.Null(AccentPhonology.Derive(Accents.Get("southern-grimes"), "anymore"));
     }
 
     [Fact]

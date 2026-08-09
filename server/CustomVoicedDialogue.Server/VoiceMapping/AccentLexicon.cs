@@ -64,8 +64,24 @@ public static class AccentLexicon
             }
             return "/" + ipa + "/";
         });
-        return BridgeSpans(accent, MergeAdjacent.Replace(substituted, " "));
+        return SoftenHeldVowelsInMultiWordSpans(
+            BridgeSpans(accent, MergeAdjacent.Replace(substituted, " ")));
     }
+
+    private static readonly Regex AnySpan = new(@"/[^/]+/", RegexOptions.Compiled);
+
+    /// <summary>Drops the extra hold mark (ːː → ː) inside any span that
+    /// ended up carrying more than one word.  Isolated fixes on which
+    /// vowels hold were not enough: measured on the "Cell block C" line,
+    /// a hold ANYWHERE inside a multi-word span cost pacing (block held:
+    /// 2 pauses in 4 of 4 calls; C held: 1–2; unheld: matched the plain
+    /// sentence), while a held word standing as its own span measured
+    /// clean.  So the full-mouth vowel hold survives only where it is
+    /// both audible and safe — on standalone words — and a merged run
+    /// keeps continuous natural phrasing.</summary>
+    private static string SoftenHeldVowelsInMultiWordSpans(string text) =>
+        AnySpan.Replace(text, match =>
+            match.Value.Contains(' ') ? match.Value.Replace("ːː", "ː") : match.Value);
 
     /// <summary>Two IPA spans separated only by a space.  Measured on
     /// inworld-tts-2: a run of separately-delimited words makes the
