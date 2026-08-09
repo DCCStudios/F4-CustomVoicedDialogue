@@ -36,7 +36,7 @@ public static class AccentLexicon
         var lexicon = Lexicons[accent.Id];
         var slipping = Accents.LineSlips(lineKey, imperfection);
         var index = 0;
-        return Token.Replace(text, match =>
+        var substituted = Token.Replace(text, match =>
         {
             if (match.Value[0] == '[')
             {
@@ -64,7 +64,16 @@ public static class AccentLexicon
             }
             return "/" + ipa + "/";
         });
+        return MergeAdjacent.Replace(substituted, " ");
     }
+
+    /// <summary>Two IPA spans separated only by a space.  Measured on
+    /// inworld-tts-2: a run of separately-delimited words makes the
+    /// synthesizer break phrasing and insert a pause mid-sentence (280 ms
+    /// and 590 ms on the two test lines) where the plain sentence has
+    /// none; joining the run into a single span removes the pause
+    /// entirely without dropping a single accented word.</summary>
+    private static readonly Regex MergeAdjacent = new(@"(?<=[^\s/])/\s/(?=[^\s/])", RegexOptions.Compiled);
 
     /// <summary>The raw entries for an accent, for validation in tests.</summary>
     internal static IEnumerable<KeyValuePair<string, string>> Entries(Accent accent) =>

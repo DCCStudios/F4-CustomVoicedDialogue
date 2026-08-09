@@ -210,7 +210,7 @@ public class ProviderRequestTests
         var (handler, client) = Mock();
         handler.RespondJson(JsonSerializer.Serialize(new
         {
-            choices = new[] { new { message = new { content = "[weary, low and slow] Not today." } } },
+            choices = new[] { new { message = new { content = "[bitter, low] Not today." } } },
         }));
         var provider = new InworldProvider(client);
         var settings = new ProviderSettings(new Dictionary<string, string>
@@ -221,7 +221,7 @@ public class ProviderRequestTests
 
         var tagged = await provider.AutoTagAsync("Not today.", "PlayerVoiceMale01", true, settings, CancellationToken.None);
 
-        Assert.Equal("[weary, low and slow] Not today.", tagged);
+        Assert.Equal("[bitter, low] Not today.", tagged);
         var request = Assert.Single(handler.Requests);
         Assert.Equal("https://api.inworld.ai/v1/chat/completions", request.Url);
         Assert.Equal("Basic cred", request.Headers.Get("Authorization"));
@@ -333,6 +333,13 @@ public class ProviderRequestTests
         // The same words read differently in a different accent, and
         // capitalized forms still match.
         Assert.Contains("/dʉːn/", AccentLexicon.Apply(Accents.Get("scottish"), "Down! Get down!", "k", 0));
+        // Neighbouring substitutions join into ONE span: separately
+        // delimited runs make the synthesizer pause mid-sentence.
+        Assert.Equal("/mɐɪ ˈbɹʌðə/ knows.",
+            AccentLexicon.Apply(Accents.Get("southern-grimes"), "My brother knows.", "k", 0));
+        // A span still closes when a plain word follows.
+        Assert.Equal("Ask /mɐɪ ˈbɹʌðə/ about it /təˈnɐɪt/.",
+            AccentLexicon.Apply(Accents.Get("southern-grimes"), "Ask my brother about it tonight.", "k", 0));
         // Neutral changes nothing at all.
         Assert.Equal(line, AccentLexicon.Apply(Accents.Get(null), line, "key-1", 0));
     }
@@ -349,7 +356,10 @@ public class ProviderRequestTests
         var slippingKey = keys.First(k => Accents.LineSlips(k, 100));
         var steadyKey = keys.First(k => !Accents.LineSlips(k, 100));
 
-        int IpaCount(string s) => s.Count(c => c == '/') / 2;
+        // Words inside the slash spans, not spans — adjacent substitutions
+        // are merged into one span.
+        int IpaCount(string s) => System.Text.RegularExpressions.Regex.Matches(s, @"/([^/]+)/")
+            .Sum(m => m.Groups[1].Value.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length);
         var full = IpaCount(AccentLexicon.Apply(cockney, line, steadyKey, 100));
         var slipped = IpaCount(AccentLexicon.Apply(cockney, line, slippingKey, 100));
 
@@ -490,8 +500,9 @@ public class ProviderRequestTests
         var cockney = Accents.Get("british-cockney");
         // "going" and "walking" have no hand entries — the rule engine
         // must carry them; "put" stays plain.
+        // Neighbouring substitutions join into one span (see MergeAdjacent).
         var applied = AccentLexicon.Apply(cockney, "Put it down before going out walking.", "k", 0);
-        Assert.Equal("Put it /daːn/ /bɪˈfɔː/ /ˈɡəʊɪn/ /aːt/ /ˈwɔːkɪn/.", applied);
+        Assert.Equal("Put it /daːn bɪˈfɔː ˈɡəʊɪn aːt ˈwɔːkɪn/.", applied);
     }
 
     [Fact]
@@ -503,8 +514,16 @@ public class ProviderRequestTests
             InworldProvider.ScrubInstruction("[a warm relaxed Southern drawl] Sure thing."));
         Assert.Equal("[quiet] Go.",
             InworldProvider.ScrubInstruction("[measured, quiet] Go."));
+        // The words the model actually reaches for in game.
+        Assert.Equal("[firm] Not today.",
+            InworldProvider.ScrubInstruction("[firm, slow and resigned] Not today."));
+        Assert.Equal("[quiet] I know.",
+            InworldProvider.ScrubInstruction("[quiet, weary, with deliberate pauses] I know."));
+        Assert.Equal("[flat] It's done.",
+            InworldProvider.ScrubInstruction("[flat, trailing off] It's done."));
         // An instruction that was nothing but the banned word disappears.
         Assert.Equal("Fine.", InworldProvider.ScrubInstruction("[relaxed] Fine."));
+        Assert.Equal("Not today.", InworldProvider.ScrubInstruction("[slow, resigned] Not today."));
         // Untouched lines pass through, including inline non-verbals.
         Assert.Equal("[stern] Put it down. [sigh] Now.",
             InworldProvider.ScrubInstruction("[stern] Put it down. [sigh] Now."));
@@ -659,7 +678,7 @@ public class ProviderRequestTests
         {
             // The model added steering but left the asterisk action in the
             // line — spoken aloud unless converted.
-            choices = new[] { new { message = new { content = "[weary] *Sighs* Fine. Have it your way." } } },
+            choices = new[] { new { message = new { content = "[flat] *Sighs* Fine. Have it your way." } } },
         }));
         var provider = new InworldProvider(client);
         var settings = new ProviderSettings(new Dictionary<string, string>
@@ -669,7 +688,7 @@ public class ProviderRequestTests
         }).WithDefaults(provider);
 
         var tagged = await provider.AutoTagAsync("*Sighs* Fine. Have it your way.", "PlayerVoiceMale01", true, settings, CancellationToken.None);
-        Assert.Equal("[weary] [sigh] Fine. Have it your way.", tagged);
+        Assert.Equal("[flat] [sigh] Fine. Have it your way.", tagged);
     }
 
     [Fact]
@@ -680,7 +699,7 @@ public class ProviderRequestTests
         {
             // The model folded the sigh into its instruction and dropped
             // the audible non-verbal — it must be restored.
-            choices = new[] { new { message = new { content = "[resigned] Fine. Have it your way." } } },
+            choices = new[] { new { message = new { content = "[flat] Fine. Have it your way." } } },
         }));
         var provider = new InworldProvider(client);
         var settings = new ProviderSettings(new Dictionary<string, string>
@@ -690,7 +709,7 @@ public class ProviderRequestTests
         }).WithDefaults(provider);
 
         var tagged = await provider.AutoTagAsync("*Sighs* Fine. Have it your way.", "PlayerVoiceMale01", true, settings, CancellationToken.None);
-        Assert.Equal("[resigned] [sigh] Fine. Have it your way.", tagged);
+        Assert.Equal("[flat] [sigh] Fine. Have it your way.", tagged);
 
         // The model was shown the pre-converted line, not raw asterisks.
         var request = Assert.Single(handler.Requests);

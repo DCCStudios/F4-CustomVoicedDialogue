@@ -181,12 +181,12 @@ public sealed class InworldProvider : ITtsProvider
         "non-verbal tags such as [sigh]; keep every one of them where they are. " +
         "Pacing matters: default to a natural conversational tempo, the way someone actually " +
         "talks mid-conversation. Steer with feeling, attitude, or volume rather than with speed. " +
-        "The words slowly, drawn-out, deliberate, measured, halting, hesitant, weary, resigned, " +
-        "solemn, sombre, and trailing off all stretch the delivery: do not use them, or synonyms " +
-        "of them, for ordinary dialogue — greetings, questions, directions, trade, banter, " +
-        "mild annoyance, or simple tiredness. Reserve them for the rare line whose impact truly " +
-        "depends on it: grief, dread, a revelation landing, or a threat meant to hang in the " +
-        "air. When in doubt, choose the brisker reading. " +
+        "The words slow, slowly, drawn-out, deliberate, measured, halting, hesitant, weary, " +
+        "resigned, solemn, sombre, trailing off, and any request for pauses all stretch the " +
+        "delivery and break it into pauses the sentence never called for: never use them or " +
+        "synonyms of them, on any line. Carry weight through feeling, attitude, or volume " +
+        "instead — bitter, quiet, flat, hard, warm, shaken. When in doubt, choose the brisker " +
+        "reading. " +
         "Written actions in asterisks are stage directions, not spoken words: replace them " +
         "with the matching non-verbal tag; never leave asterisk text in the line. " +
         "Exception: when the whole line is a written vocalization, sound, or action rather " +
@@ -236,6 +236,10 @@ public sealed class InworldProvider : ITtsProvider
     public async Task<AutoTagResult> AutoTagDetailedAsync(string text, string voiceType, bool isPlayer, ProviderSettings settings, CancellationToken cancellationToken, string voicePath = "", VoiceMapping.Accent? accent = null, int accentImperfection = 0)
     {
         var result = await TagCoreAsync(text, voiceType, isPlayer, settings, cancellationToken, voicePath, accent, accentImperfection);
+        // Enforced, not merely requested: the model reaches for "slow" and
+        // "resigned" on lines whose content does not call for them, and
+        // those words audibly stretch and fragment the delivery.
+        result = result with { Text = ScrubInstruction(result.Text) };
         // Accent pronunciation is applied here, in code, from the curated
         // IPA lexicon — deterministic, model-independent, and verified to
         // synthesize correctly on inworld-tts-2 (which reads /IPA/ inline).
@@ -404,25 +408,54 @@ public sealed class InworldProvider : ITtsProvider
         }
     }
 
-    /// <summary>Removes the delivery-stretching adjectives from a line's
+    /// <summary>Words and phrases that make TTS-2 stretch the delivery and
+    /// break phrasing into pauses the sentence does not call for.  The
+    /// system prompt already asks the model to avoid them for ordinary
+    /// dialogue, but that is advisory and demonstrably does not hold, so
+    /// the instruction is scrubbed in code as well.  Phrases go first:
+    /// removing "deliberate" from "with deliberate pauses" would
+    /// otherwise leave the pauses behind.</summary>
+    private static readonly string[] PacingPhrases =
+    [
+        @"\bwith\s+(deliberate|long|heavy|slight)?\s*pauses?\b",
+        @"\b(deliberate|long|heavy|slight)\s+pauses?\b",
+        @"\bpaus(es|ing)\b",
+        @"\btrailing\s+off\b",
+        @"\bdrawn[-\s]out\b",
+        @"\bletting\s+(it|the\s+\w+)\s+hang\b",
+    ];
+
+    private const string PacingWords =
+        @"\b(slow|slowly|slower|resigned|weary|wearily|measured|relaxed|deliberate|" +
+        @"deliberately|halting|haltingly|hesitant|hesitantly|solemn|solemnly|sombre|" +
+        @"somber|unhurried|laboured|labored|plodding|ponderous|languid|lingering)\b";
+
+    /// <summary>Removes the delivery-stretching direction from a line's
     /// leading steering instruction, tidying the leftover punctuation; an
-    /// instruction emptied entirely is dropped.  Used by the app's accent
-    /// preview so its sample takes play at conversational tempo — real
-    /// dialogue keeps the tagger's own judgement.</summary>
+    /// instruction emptied entirely is dropped.</summary>
     public static string ScrubInstruction(string tagged)
     {
         return System.Text.RegularExpressions.Regex.Replace(tagged, @"^\s*\[[^\]]+\]", match =>
         {
             var inner = match.Value;
+            foreach (var phrase in PacingPhrases)
+            {
+                inner = System.Text.RegularExpressions.Regex.Replace(
+                    inner, phrase, "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            }
             inner = System.Text.RegularExpressions.Regex.Replace(
-                inner, @"\b(measured|relaxed)\b", "",
+                inner, PacingWords, "",
                 System.Text.RegularExpressions.RegexOptions.IgnoreCase);
             inner = System.Text.RegularExpressions.Regex.Replace(inner, @"\s{2,}", " ");
-            inner = System.Text.RegularExpressions.Regex.Replace(inner, @"\s+,", ",");
-            inner = System.Text.RegularExpressions.Regex.Replace(inner, @",(\s*,)+", ",");
+            inner = System.Text.RegularExpressions.Regex.Replace(inner, @"\s+([,;])", "$1");
+            inner = System.Text.RegularExpressions.Regex.Replace(inner, @"([,;])(\s*[,;])+", "$1");
             inner = System.Text.RegularExpressions.Regex.Replace(inner, @"\s*\b(and|with)\s*,", ",");
-            inner = System.Text.RegularExpressions.Regex.Replace(inner, @"\[\s*(,|and\b|with\b)?\s*", "[");
-            inner = System.Text.RegularExpressions.Regex.Replace(inner, @"\s*(,|\band|\bwith)?\s*\]", "]");
+            // Whatever connective or punctuation the removal stranded at
+            // either end goes with it.
+            inner = System.Text.RegularExpressions.Regex.Replace(
+                inner, @"^\[[\s,;]*(?:\b(?:and|with)\b)?[\s,;]*", "[");
+            inner = System.Text.RegularExpressions.Regex.Replace(
+                inner, @"[\s,;]*(?:\b(?:and|with)\b)?[\s,;]*\]$", "]");
             return inner == "[]" ? "" : inner;
         }).TrimStart();
     }
