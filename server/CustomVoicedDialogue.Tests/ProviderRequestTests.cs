@@ -414,8 +414,8 @@ public class ProviderRequestTests
     [InlineData("boston", "harbor", "ˈhɑːbə")]
     [InlineData("deep-south", "outside", "ˈæʊtˈsɑːd")]     // CMUdict marks both syllables primary
     [InlineData("southern", "time", "tɑːm")]               // matches the hand entry
-    [InlineData("southern-grimes", "right", "ɹaːt")]       // PRICE weakens onto the FRONT a
-    [InlineData("southern-grimes", "night", "naːt")]       // "nigh-t", not Deep South "naht"
+    [InlineData("southern-grimes", "right", "ɹɐɪt")]       // PRICE keeps a trace of its glide
+    [InlineData("southern-grimes", "night", "nɐɪt")]       // "nigh-t": not "naht", not "naight"
     [InlineData("southern-grimes", "brother", "ˈbɹʌðə")]   // unstressed coda r drops
     [InlineData("southern-grimes", "walkers", "ˈwɔːkəz")]
     [InlineData("russian", "everything", "ˈɛvriːˌsɪŋ")]    // th → s

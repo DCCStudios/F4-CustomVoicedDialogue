@@ -219,9 +219,10 @@ public static class AccentLexicon
         // r's; here live the stoplisted carriers and the signatures.
         ["southern-grimes"] = new(StringComparer.Ordinal)
         {
-            // The front aː of the weakened PRICE glide — "I'm" is aːm,
-            // never the back "Ah'm" of the broader Southern accents.
-            ["i"] = "aː", ["my"] = "maː",
+            // The weakened PRICE glide from its raised onset — "I'm" is
+            // ɐɪm, never the flat "Ah'm" of the broader Southern accents
+            // and never the full "Ai'm".
+            ["i"] = "ɐɪ", ["my"] = "mɐɪ",
             ["thing"] = "θæŋ", ["things"] = "θæŋz", ["get"] = "ɡɪt",
             // The "Coral" phenomenon: the -ar-l breaks into two syllables.
             ["carl"] = "ˈkɔrəl", ["carl's"] = "ˈkɔrəlz",
