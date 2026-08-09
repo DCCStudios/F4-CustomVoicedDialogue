@@ -100,11 +100,13 @@ internal static class AccentPhonology
                 Vowel(p, "eɪ", "eː");
                 Vowel(p, "oʊ", "oː");
                 IngToIn(p);
+                TapR(p);
                 break;
             case "welsh":
                 Vowel(p, "eɪ", "eː");
                 Vowel(p, "oʊ", "oː");
                 NonRhotic(p);
+                TapR(p);
                 break;
             case "irish":
                 Sound(p, "ð", "d");
@@ -122,6 +124,7 @@ internal static class AccentPhonology
                 Vowel(p, "æ", "a");
                 Vowel(p, "ʌ", "a");
                 SClusterProthesis(p);
+                RomanceR(p);
                 break;
             case "australian":
                 Vowel(p, "aɪ", "ɑɪ");
@@ -134,6 +137,7 @@ internal static class AccentPhonology
                 Sound(p, "θ", "s");
                 Sound(p, "ð", "z");
                 FinalDevoicing(p);
+                TrillR(p);
                 break;
             case "french":
                 DropInitialH(p);
@@ -157,6 +161,7 @@ internal static class AccentPhonology
                 Vowel(p, "æ", "a");
                 Vowel(p, "ʌ", "a");
                 Vowel(p, "ɪ", "i");
+                RomanceR(p);
                 break;
         }
     }
@@ -191,7 +196,7 @@ internal static class AccentPhonology
     {
         for (var i = p.Count - 1; i >= 0; i--)
         {
-            if (p[i].Sound != "r" || (i + 1 < p.Count && p[i + 1].IsVowel))
+            if (p[i].Sound != "ɹ" || (i + 1 < p.Count && p[i + 1].IsVowel))
             {
                 continue;
             }
@@ -257,7 +262,7 @@ internal static class AccentPhonology
             {
                 continue;
             }
-            var startSyllable = i + 1 < p.Count && p[i + 1].Sound == "r" &&
+            var startSyllable = i + 1 < p.Count && p[i + 1].Sound == "ɹ" &&
                 (i + 2 >= p.Count || !p[i + 2].IsVowel);
             if (!startSyllable)
             {
@@ -328,7 +333,7 @@ internal static class AccentPhonology
 
     private static readonly HashSet<string> Voiced = new(StringComparer.Ordinal)
     {
-        "b", "d", "ɡ", "v", "ð", "z", "ʒ", "dʒ", "m", "n", "ŋ", "l", "r", "w", "j",
+        "b", "d", "ɡ", "v", "ð", "z", "ʒ", "dʒ", "m", "n", "ŋ", "l", "ɹ", "w", "j",
     };
 
     private static void PenPinMerger(List<Phone> p)
@@ -371,6 +376,30 @@ internal static class AccentPhonology
         }
     }
 
+    // The three r's: ɹ is the English approximant (the default every
+    // derived word gets), ɾ the alveolar tap, r the full trill.  Verified
+    // live: Inworld renders ɹ identically to a plain word (envelope
+    // correlation 0.95) while ɾ and r audibly change the articulation.
+
+    /// <summary>Scottish/Welsh: every surviving r is tapped.</summary>
+    private static void TapR(List<Phone> p) => Sound(p, "ɹ", "ɾ");
+
+    /// <summary>Russian: every r is a full trill.</summary>
+    private static void TrillR(List<Phone> p) => Sound(p, "ɹ", "r");
+
+    /// <summary>Spanish/Italian distribution: a word-initial r is trilled,
+    /// every other r is a tap.</summary>
+    private static void RomanceR(List<Phone> p)
+    {
+        for (var i = 0; i < p.Count; i++)
+        {
+            if (p[i].Sound == "ɹ")
+            {
+                p[i] = p[i] with { Sound = i == 0 ? "r" : "ɾ" };
+            }
+        }
+    }
+
     // ---- rendering --------------------------------------------------------
 
     /// <summary>Phones to an IPA string, with a stress mark placed at the
@@ -398,7 +427,8 @@ internal static class AccentPhonology
                         break;
                     }
                     if (taken == 1 &&
-                        candidate != "s" && phones[start].Sound is not ("r" or "l" or "w" or "j"))
+                        candidate != "s" &&
+                        phones[start].Sound is not ("ɹ" or "ɾ" or "r" or "l" or "w" or "j"))
                     {
                         break;
                     }
@@ -445,7 +475,7 @@ internal static class AccentPhonology
             if (symbol == "ER")
             {
                 phones.Add(new Phone(stress is 1 or 2 ? "ɜ" : "ə", stress < 0 ? 0 : stress));
-                phones.Add(new Phone("r", -1));
+                phones.Add(new Phone("ɹ", -1));
                 continue;
             }
             // AH is the one stress-dependent vowel: unstressed it is schwa,
@@ -469,7 +499,7 @@ internal static class AccentPhonology
         ["OY"] = "ɔɪ", ["UH"] = "ʊ", ["UW"] = "uː",
         ["B"] = "b", ["CH"] = "tʃ", ["D"] = "d", ["DH"] = "ð", ["F"] = "f",
         ["G"] = "ɡ", ["HH"] = "h", ["JH"] = "dʒ", ["K"] = "k", ["L"] = "l",
-        ["M"] = "m", ["N"] = "n", ["NG"] = "ŋ", ["P"] = "p", ["R"] = "r",
+        ["M"] = "m", ["N"] = "n", ["NG"] = "ŋ", ["P"] = "p", ["R"] = "ɹ",
         ["S"] = "s", ["SH"] = "ʃ", ["T"] = "t", ["TH"] = "θ", ["V"] = "v",
         ["W"] = "w", ["Y"] = "j", ["Z"] = "z", ["ZH"] = "ʒ",
     };

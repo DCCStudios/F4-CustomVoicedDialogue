@@ -88,9 +88,9 @@ public sealed class SynthesisService
         // adding the feature does not invalidate everybody's existing audio.
         var accent = Accents.Get(_config.PlayerAccent);
         // The mechanism version rides in the marker: "ipa" was the
-        // hand-lexicon-only stage, "ipa2" added rule-derived pronunciations.
+        // hand-lexicon-only stage, "ipa2" added rule-derived pronunciations, "ipa3" the accent-true r symbols.
         // Bumping it regenerates accented audio after a mechanism change.
-        var accentPart = accent.IsNeutral ? "" : $"|ipa2:{accent.Id}|{_config.AccentImperfection}";
+        var accentPart = accent.IsNeutral ? "" : $"|ipa3:{accent.Id}|{_config.AccentImperfection}";
         return Fingerprint(
             $"player|{provider.Id.ToLowerInvariant()}|{voice}|{settings.CanonicalHash()}{accentPart}");
     }
@@ -119,7 +119,7 @@ public sealed class SynthesisService
                 .OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
                 .Select(pair => $"{pair.Key.ToLowerInvariant()}={pair.Value}"));
         // As above: no accents configured, no change to existing audio.
-        var accentPart = accents.Length == 0 ? "" : $"|ipa2:{accents}|{_config.AccentImperfection}";
+        var accentPart = accents.Length == 0 ? "" : $"|ipa3:{accents}|{_config.AccentImperfection}";
         return Fingerprint(
             $"npc|{provider.Id.ToLowerInvariant()}|{overrides}|{settings.CanonicalHash()}{accentPart}");
     }

@@ -72,6 +72,51 @@ public static class AccentLexicon
             ? lexicon
             : Enumerable.Empty<KeyValuePair<string, string>>();
 
+    /// <summary>Hand entries are written with a plain r; each accent's real
+    /// r is stamped in once at startup — ɹ (English approximant) by
+    /// default, ɾ (tap) for the tapping accents, r (trill) for Russian.
+    /// Verified live: Inworld reads ɹ as a normal English r while ɾ and r
+    /// audibly change the articulation.  Spanish and Italian trill only a
+    /// word-initial r and tap the rest, matching their real
+    /// distribution.</summary>
+    static AccentLexicon()
+    {
+        foreach (var (accentId, lexicon) in Lexicons)
+        {
+            foreach (var word in lexicon.Keys.ToList())
+            {
+                lexicon[word] = NormalizeR(accentId, lexicon[word]);
+            }
+        }
+    }
+
+    private static string NormalizeR(string accentId, string ipa)
+    {
+        switch (accentId)
+        {
+            case "scottish" or "welsh":
+                return ipa.Replace('r', 'ɾ');
+            case "russian":
+                return ipa;  // plain r IS the trill symbol
+            case "spanish-mexican" or "italian":
+            {
+                var tapped = ipa.Replace('r', 'ɾ');
+                var start = 0;
+                while (start < tapped.Length && tapped[start] is 'ˈ' or 'ˌ')
+                {
+                    start++;
+                }
+                if (start < tapped.Length && tapped[start] == 'ɾ')
+                {
+                    tapped = tapped.Remove(start, 1).Insert(start, "r");
+                }
+                return tapped;
+            }
+            default:
+                return ipa.Replace('r', 'ɹ');
+        }
+    }
+
     // Steering tags pass through whole; words are letters and apostrophes,
     // so contractions ("don't") match as one token and possessives
     // ("world's") simply miss the lexicon and stay untouched.

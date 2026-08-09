@@ -367,7 +367,7 @@ public class ProviderRequestTests
         // A sample that touches at least one lexicon word of every accent.
         const string sample = "I think my friend will take the house down that road, but there's nothing better going now, right?";
         var word = new System.Text.RegularExpressions.Regex(@"^[a-z']+$");
-        var ipa = new System.Text.RegularExpressions.Regex(@"^[a-zæɑɒɔəɛɜɪʊʌŋθðʃʒɡːˈˌ]+$");
+        var ipa = new System.Text.RegularExpressions.Regex(@"^[a-zæɑɒɔəɛɜɪʊʌŋθðʃʒɡɹɾːˈˌ]+$");
 
         Assert.False(AccentLexicon.Has(Accents.Get(null)));
         Assert.All(Accents.All.Skip(1), accent =>
@@ -398,19 +398,20 @@ public class ProviderRequestTests
     [InlineData("british-cockney", "going", "ˈɡəʊɪn")]     // GOAT + -in
     [InlineData("british-cockney", "walking", "ˈwɔːkɪn")]
     [InlineData("british-cockney", "thinking", "ˈfɪŋkɪn")] // th-fronting
-    [InlineData("british-cockney", "hurry", "ˈɜriː")]      // h-drop
+    [InlineData("british-cockney", "hurry", "ˈɜɹiː")]      // h-drop, approximant r
     [InlineData("british-rp", "start", "stɑːt")]           // START keeps ɑː
     [InlineData("british-rp", "forgot", "fəˈɡɒt")]         // non-rhotic + LOT
     [InlineData("british-rp", "father", "ˈfɑːðə")]         // PALM exception
     [InlineData("british-rp", "chances", "ˈtʃɑːnsəz")]     // BATH
     [InlineData("scottish", "found", "fuːnd")]             // MOUTH, rhotic kept
-    [InlineData("scottish", "raider", "ˈreːdər")]
+    [InlineData("scottish", "raider", "ˈɾeːdəɾ")]          // tapped r
     [InlineData("boston", "harbor", "ˈhɑːbə")]
     [InlineData("deep-south", "outside", "ˈæʊtˈsɑːd")]     // CMUdict marks both syllables primary
     [InlineData("southern", "time", "tɑːm")]               // matches the hand entry
     [InlineData("russian", "everything", "ˈɛvriːˌsɪŋ")]    // th → s
     [InlineData("german", "javelin", "ˈtʃɛvələn")]         // dʒ → tʃ, æ → ɛ
-    [InlineData("spanish-mexican", "strange", "esˈtreɪndʒ")]
+    [InlineData("spanish-mexican", "strange", "esˈtɾeɪndʒ")] // tapped cluster r
+    [InlineData("russian", "rifle", "ˈraɪfəl")]            // trilled r
     public void Accent_PhonologyDerivesUnlistedWords(string accentId, string word, string expected)
     {
         Assert.Equal(expected, AccentPhonology.Derive(Accents.Get(accentId), word));
@@ -442,7 +443,7 @@ public class ProviderRequestTests
 
         // Southern stays milder than Deep South on the same word.
         Assert.Null(AccentPhonology.Derive(Accents.Get("southern"), "right"));
-        Assert.Equal("rɑːt", AccentPhonology.Derive(Accents.Get("deep-south"), "right"));
+        Assert.Equal("ɹɑːt", AccentPhonology.Derive(Accents.Get("deep-south"), "right"));
     }
 
     [Fact]

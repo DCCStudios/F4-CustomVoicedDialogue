@@ -464,7 +464,21 @@ public partial class MainWindow : Window
             return;
         }
         var accent = PlayerAccentCombo.SelectedItem as Accent ?? Accents.Get(Accents.Default);
-        const string sample = "I'm not going to ask you again. Put the gun down and walk away.";
+        // Each click cycles to the next sample.  Together they touch every
+        // feature the accents trade on: the PRICE/MOUTH/FACE vowel shifts,
+        // th and wh consonant changes, h-dropping, broad BATH, LOT
+        // rounding, r flavour (tap/trill words), yod words, and the
+        // function words the lexicons target.
+        string[] samples =
+        [
+            "I'm not going to ask you again. Put the gun down and walk away.",
+            "My brother thinks the whole town saw something out there last night.",
+            "Take the road south past the old house and don't stop for anything.",
+            "There's nothing better than a hot meal and a good night's sleep.",
+            "Sorry, friend — we haven't heard any news about the raiders around here.",
+            "What was that? Stay right where you are and keep your voice down.",
+        ];
+        var sample = samples[_testTakeCounter % samples.Length];
 
         // Read every control up front: the synthesis call runs on a worker
         // thread, and WPF controls may only be touched on the UI thread.
