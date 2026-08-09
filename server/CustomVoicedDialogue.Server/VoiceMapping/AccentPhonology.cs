@@ -65,13 +65,14 @@ internal static class AccentPhonology
                 // Andrew Lincoln's Rick Grimes: restrained, never a
                 // caricature — the analyses stress subtlety over broad
                 // Southern vowel changes, so ONLY the well-attested
-                // features: PRICE flattens everywhere ("that's raht",
-                // "mah"), -ing drops its g, and the r's stay American
-                // except the unstressed codas that audibly soften
-                // (brother → brʌðə, walkers → wɔːkəz).  Deliberately NO
-                // pen-pin merger and NO MOUTH fronting — linguists note
-                // both absences as tells of the portrayal.
-                Vowel(p, "aɪ", "ɑː");
+                // features: PRICE loses its glide onto a FRONT long a
+                // (Appalachian glide-weakening — night → naːt, "nigh-t",
+                // not the Deep South back "naht"), -ing drops its g, and
+                // the r's stay American except the unstressed codas that
+                // audibly soften (brother → brʌðə, walkers → wɔːkəz).
+                // Deliberately NO pen-pin merger and NO MOUTH fronting —
+                // linguists note both absences as tells of the portrayal.
+                Vowel(p, "aɪ", "aː");
                 UnstressedDerhoting(p);
                 IngToIn(p);
                 break;
