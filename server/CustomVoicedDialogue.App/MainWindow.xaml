@@ -6,6 +6,7 @@
     <Window.Resources>
         <Style TargetType="TextBlock">
             <Setter Property="Foreground" Value="#FFE8E8E8"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
         <Style TargetType="Button">
             <Setter Property="Padding" Value="10,4"/>

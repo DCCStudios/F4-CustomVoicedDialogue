@@ -175,8 +175,10 @@ public sealed class InworldProvider : ITtsProvider
         "(emotion, attitude, volume, pitch, vocal style; under 15 words); " +
         "(2) optional non-verbal tags from [laugh] [breathe] [clear throat] [sigh] [cough] [yawn] " +
         "inserted inline where the sound occurs; " +
-        "(3) optionally capitalizing the one word or syllable the delivery stresses (NOT, aGAIN) — " +
-        "at most one per line, only where the line clearly leans on it; most lines need none. " +
+        "(3) optionally capitalizing the word or syllable the delivery stresses (NOT, aGAIN) — " +
+        "one for most lines, two when the line has a genuine build or reversal (a rhetorical " +
+        "question, a threat that lands harder on its last word, a correction), none for a flat " +
+        "or purely functional line. " +
         "Capitalizing changes letter CASE only: every letter of the word must survive exactly " +
         "(alright → alRIGHT, never aRIGHT; because → beCAUSE, never bCAUSE). " +
         "Real dialogue must keep its spoken words exactly. The line may already contain " +
@@ -185,9 +187,15 @@ public sealed class InworldProvider : ITtsProvider
         "safe one. [neutral], [calm], [normal tone] and [steady] are wasted takes: work out what " +
         "the line is actually doing — a threat, a warning, a plea, a boast, a joke, suspicion, " +
         "relief, grief, disgust, affection, adrenaline after a fight — and name that feeling " +
-        "with the attitude under it, layering two or three qualities that reinforce each other: " +
-        "[cold, teeth-gritted, dangerously quiet], [warm and relieved, half a laugh in it], " +
-        "[sharp, incredulous, pitch rising], [gruff but gentle, protective]. " +
+        "with the attitude under it, layering two or three qualities that reinforce each other. " +
+        "Prefer a quality that MOVES over one that only sits there: where the line has a shift " +
+        "in it, name the shift, not just the mood — pitch rising through a threat, volume " +
+        "dropping to a hush on the last word, a laugh breaking through on the turn, a crack or " +
+        "catch where it hurts, building rather than flat throughout. A static mood is the " +
+        "fallback for a line that truly holds steady, not the default: " +
+        "[cold, teeth-gritted, dangerously quiet], [warm, relief breaking into a short laugh], " +
+        "[sharp, incredulous, pitch climbing], [gruff but gentle, softening on her name], " +
+        "[building fury, volume rising to the last word], [voice cracking on the last word]. " +
         "Even a plain functional line has a mood behind it: someone giving directions is " +
         "impatient, wary, or glad to help, never blank. " +
         "Pacing matters: default to a natural conversational tempo, the way someone actually " +
