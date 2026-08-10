@@ -181,14 +181,16 @@ public sealed class InworldProvider : ITtsProvider
         "or purely functional line. " +
         "Capitalizing changes letter CASE only: every letter of the word must survive exactly " +
         "(alright → alRIGHT, never aRIGHT; because → beCAUSE, never bCAUSE). " +
-        "(4) intensifying the line's own end punctuation whenever the emotion is a strong one — " +
-        "fury, desperation, terror, a shout, a plea. Do this often, not rarely: \"How many of " +
-        "you do I have to kill to save your lives?\" ending in mere \"?\" undersells it — it " +
-        "should end \"?!\". \"Get away from her!\" undersells it too — \"Get away from her!!\" " +
-        "is the read. A flat statement that is really a threat gains a \"!\" it did not have " +
-        "(\"We had a deal.\" → \"We had a deal!\" when it is spoken as an accusation). Skip this " +
-        "only for a genuinely calm or functional line. Never use an ellipsis or add a dash for a " +
-        "pause: that stretches the delivery exactly like the banned words below. " +
+        "(4) intensifying the line's own end punctuation specifically where the delivery is " +
+        "LOUD or explosive — a shout, a furious outburst, a desperate cry. Used as needed, not " +
+        "as a default: most lines, even strongly felt ones, keep their own punctuation — a " +
+        "quiet threat, a grief-stricken line, or anything delivered hushed or controlled never " +
+        "gains a mark it did not have. Where a line truly is shouted, mere \"?\" or \"!\" " +
+        "undersells it: \"How many of you do I have to kill to save your lives?\" becomes " +
+        "\"...lives?!\"; \"Get away from her!\" becomes \"Get away from her!!\"; a flat " +
+        "statement screamed as an accusation can gain a \"!\" it did not have (\"We had a " +
+        "deal.\" → \"We had a deal!\"). Never use an ellipsis or add a dash for a pause: that " +
+        "stretches the delivery exactly like the banned words below. " +
         "Real dialogue must keep its spoken words exactly (punctuation is not a word — rule 4 " +
         "above is the one exception to \"exactly\"). The line may already contain non-verbal " +
         "tags such as [sigh]; keep every one of them where they are. " +
@@ -196,7 +198,11 @@ public sealed class InworldProvider : ITtsProvider
         "safe one. [neutral], [calm], [normal tone] and [steady] are wasted takes: work out what " +
         "the line is actually doing — a threat, a warning, a plea, a boast, a joke, suspicion, " +
         "relief, grief, disgust, affection, adrenaline after a fight — and name that feeling " +
-        "with the attitude under it, layering two or three qualities that reinforce each other. " +
+        "with the attitude under it, layering two or three qualities that reinforce each other — " +
+        "four for a line at the true extreme, and there layer in a PHYSICAL sensation of the " +
+        "body producing the sound, not just an emotion word: breathing hard, teeth gritted, " +
+        "throat tight, voice shaking, jaw clenched. [angry, threatening, heavily breathing, " +
+        "full of hatred] is what an actual rage line calls for, not a single polite adjective. " +
         "Prefer a quality that MOVES over one that only sits there: where the line has a shift " +
         "in it, name the shift, not just the mood — pitch rising through a threat, volume " +
         "dropping to a hush on the last word, a laugh breaking through on the turn, a crack or " +
@@ -205,6 +211,10 @@ public sealed class InworldProvider : ITtsProvider
         "[cold, teeth-gritted, dangerously quiet], [warm, relief breaking into a short laugh], " +
         "[sharp, incredulous, pitch climbing], [gruff but gentle, softening on her name], " +
         "[building fury, volume rising to the last word], [voice cracking on the last word]. " +
+        "A line that repeats a word or phrase for emphasis (\"not today, not tomorrow... " +
+        "NOTHING is gonna change that — NOTHING\") may capitalize that word each time it lands, " +
+        "not just once — the repetition is the point, and rule (3)'s cap is per distinct " +
+        "emphasis, not per line. " +
         "Even a plain functional line has a mood behind it: someone giving directions is " +
         "impatient, wary, or glad to help, never blank. " +
         "Pacing matters: default to a natural conversational tempo, the way someone actually " +
