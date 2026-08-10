@@ -107,18 +107,41 @@ public static class AccentLexicon
 
     private static readonly Regex AnySpan = new(@"/[^/]+/", RegexOptions.Compiled);
 
-    /// <summary>Drops the extra hold mark (ːː → ː) inside any span that
-    /// ended up carrying more than one word.  Isolated fixes on which
-    /// vowels hold were not enough: measured on the "Cell block C" line,
-    /// a hold ANYWHERE inside a multi-word span cost pacing (block held:
-    /// 2 pauses in 4 of 4 calls; C held: 1–2; unheld: matched the plain
-    /// sentence), while a held word standing as its own span measured
-    /// clean.  So the full-mouth vowel hold survives only where it is
-    /// both audible and safe — on standalone words — and a merged run
-    /// keeps continuous natural phrasing.</summary>
+    /// <summary>Thins the extra hold marks (ːː → ː) inside a span down to
+    /// what measured safe.  A span of one word keeps its hold — that is
+    /// the clean case.  A multi-word span keeps at most ONE hold, and
+    /// never on its final word: with one hold mid-span ("ðæts ə swiːːt
+    /// diːl") pacing matched the unheld span across 5 calls, while the
+    /// "Cell block C" line degraded whenever the hold sat on the closing
+    /// word or a second hold joined it (2 holds: 2 pauses in 4 of 4
+    /// calls; hold on the final word: 1–2; neither: matched the plain
+    /// sentence).  So the full-mouth stretch survives wherever it is
+    /// audible and free, and steps aside at the span's edge where it
+    /// costs phrasing.</summary>
     private static string SoftenHeldVowelsInMultiWordSpans(string text) =>
         AnySpan.Replace(text, match =>
-            match.Value.Contains(' ') ? match.Value.Replace("ːː", "ː") : match.Value);
+        {
+            var words = match.Value.Trim('/').Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (words.Length <= 1)
+            {
+                return match.Value;
+            }
+            var kept = false;
+            for (var i = 0; i < words.Length; i++)
+            {
+                if (!words[i].Contains("ːː"))
+                {
+                    continue;
+                }
+                if (kept || i == words.Length - 1)
+                {
+                    words[i] = words[i].Replace("ːː", "ː");
+                    continue;
+                }
+                kept = true;
+            }
+            return "/" + string.Join(" ", words) + "/";
+        });
 
     /// <summary>Two IPA spans separated only by a space.  Measured on
     /// inworld-tts-2: a run of separately-delimited words makes the

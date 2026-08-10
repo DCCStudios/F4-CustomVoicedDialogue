@@ -350,9 +350,13 @@ public class ProviderRequestTests
         // the comma and the span is absorbed so the span starts at the
         // punctuation (a lone plain word pinched there measured an extra
         // pause in 5 of 6 calls).
-        Assert.Equal("/ˈwɔːlkəz/, /ɔːl ˈoʊvə sɛl blɑːk siː/.",
+        // A multi-word span keeps at most one hold and never on its last
+        // word: "all" holds, the closing "C" does not.
+        Assert.Equal("/ˈwɔːlkəz/, /ɔːːl ˈoʊvə sɛl blɑːk siː/.",
             AccentLexicon.Apply(Accents.Get("southern-grimes"), "Walkers, all over Cell block C.", "k", 0));
-        Assert.Equal("/swiːːt/. That's a /swiːːt/ deal.",
+        // A standalone held word keeps its stretch, and so does one held
+        // mid-span — the shape that measured level with the unheld span.
+        Assert.Equal("/swiːːt/. /ðæts ə swiːːt diːl/.",
             AccentLexicon.Apply(Accents.Get("southern-grimes"), "Sweet. That's a sweet deal.", "k", 0));
         // Neutral changes nothing at all.
         Assert.Equal(line, AccentLexicon.Apply(Accents.Get(null), line, "key-1", 0));
@@ -527,9 +531,9 @@ public class ProviderRequestTests
         // words is restored — a bare held vowel into k reads as "wark".
         Assert.Equal("ˈtɔːlkɪn", AccentPhonology.Derive(Accents.Get("southern-grimes"), "talking"));
         Assert.Equal("tʃɔːlk", AccentPhonology.Derive(Accents.Get("southern-grimes"), "chalk"));
-        // Never fires on a word that never had the letter — and with no l
-        // and no FLEECE/GOOSE vowel, hawk has no reason to derive at all.
-        Assert.Null(AccentPhonology.Derive(Accents.Get("southern-grimes"), "hawk"));
+        // Never fires on a word that never had the letter: hawk keeps its
+        // THOUGHT hold but gains no l.
+        Assert.Equal("hɔːːk", AccentPhonology.Derive(Accents.Get("southern-grimes"), "hawk"));
         // The hold class narrowed to primary-stressed FLEECE/GOOSE after
         // repeated measurements showed every wider variant (all long
         // vowels; LOT/THOUGHT included; multiple holds per span)
@@ -538,7 +542,12 @@ public class ProviderRequestTests
         // all, and "This isn't a democracy anymore." goes to the
         // synthesizer completely plain.
         Assert.Null(AccentPhonology.Derive(Accents.Get("southern-grimes"), "democracy"));
-        Assert.Null(AccentPhonology.Derive(Accents.Get("southern-grimes"), "anymore"));
+        // THOUGHT rejoined the hold class for the drawn-out "all", so
+        // "alright" carries it on the secondary-stressed syllable that
+        // actually holds it — and the l closes that syllable rather than
+        // opening an lɹ cluster English does not have.
+        Assert.Equal("ˌɔːːlˈɹɐɪt", AccentPhonology.Derive(Accents.Get("southern-grimes"), "alright"));
+        Assert.Equal("ɔːːl", AccentPhonology.Derive(Accents.Get("southern-grimes"), "all"));
     }
 
     [Fact]

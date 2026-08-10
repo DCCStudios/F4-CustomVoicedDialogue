@@ -170,17 +170,29 @@ public sealed class InworldProvider : ITtsProvider
 
     private const string TaggerSystemPrompt =
         "You add Inworld TTS-2 voice steering to lines of video game dialogue. " +
-        "Reply with the line unchanged except for: (1) at most one short steering instruction " +
+        "Reply with the line unchanged except for: (1) exactly one steering instruction " +
         "in square brackets placed before the line, written like direction to a voice actor " +
-        "(emotion, pacing, volume, pitch, vocal style; under 15 words); " +
+        "(emotion, attitude, volume, pitch, vocal style; under 15 words); " +
         "(2) optional non-verbal tags from [laugh] [breathe] [clear throat] [sigh] [cough] [yawn] " +
         "inserted inline where the sound occurs; " +
         "(3) optionally capitalizing the one word or syllable the delivery stresses (NOT, aGAIN) — " +
-        "at most one per line, only when the line clearly stresses it. " +
+        "at most one per line, only where the line clearly leans on it; most lines need none. " +
+        "Capitalizing changes letter CASE only: every letter of the word must survive exactly " +
+        "(alright → alRIGHT, never aRIGHT; because → beCAUSE, never bCAUSE). " +
         "Real dialogue must keep its spoken words exactly. The line may already contain " +
         "non-verbal tags such as [sigh]; keep every one of them where they are. " +
+        "COMMIT TO A REAL EMOTION on every line — a performance with a point of view beats a " +
+        "safe one. [neutral], [calm], [normal tone] and [steady] are wasted takes: work out what " +
+        "the line is actually doing — a threat, a warning, a plea, a boast, a joke, suspicion, " +
+        "relief, grief, disgust, affection, adrenaline after a fight — and name that feeling " +
+        "with the attitude under it, layering two or three qualities that reinforce each other: " +
+        "[cold, teeth-gritted, dangerously quiet], [warm and relieved, half a laugh in it], " +
+        "[sharp, incredulous, pitch rising], [gruff but gentle, protective]. " +
+        "Even a plain functional line has a mood behind it: someone giving directions is " +
+        "impatient, wary, or glad to help, never blank. " +
         "Pacing matters: default to a natural conversational tempo, the way someone actually " +
-        "talks mid-conversation. Steer with feeling, attitude, or volume rather than with speed. " +
+        "talks mid-conversation. Emotion comes from feeling, attitude, volume and pitch, never " +
+        "from speed — an intense line is intense at full tempo. " +
         "The words slow, slowly, drawn-out, deliberate, measured, halting, hesitant, weary, " +
         "resigned, solemn, sombre, trailing off, and any request for pauses all stretch the " +
         "delivery and break it into pauses the sentence never called for: never use them or " +

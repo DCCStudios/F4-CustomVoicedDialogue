@@ -105,8 +105,7 @@ internal static class AccentPhonology
                 Vowel(p, "aɪ", "ɐɪ");
                 UnstressedDerhoting(p);
                 IngToIn(p);
-                RestoreSilentL(word, p);
-                HoldLongVowels(p);
+                HoldLongVowels(p, RestoreSilentL(word, p));
                 break;
             case "boston":
                 NonRhotic(p);
@@ -577,47 +576,67 @@ internal static class AccentPhonology
     /// reads as an r-coloured "wark" rather than "walk", and an actual l
     /// consonant is the reliable fix.  Scoped to the "alk" spelling so it
     /// never fires on a word (like hawk) that never had the letter.</summary>
-    private static void RestoreSilentL(string word, List<Phone> p)
+    /// <returns>The index of the vowel the l was restored after, or -1
+    /// when nothing was inserted — that vowel must not also be held (see
+    /// <see cref="HoldLongVowels"/>).</returns>
+    private static int RestoreSilentL(string word, List<Phone> p)
     {
         if (!word.Contains("alk", StringComparison.Ordinal))
         {
-            return;
+            return -1;
         }
         for (var i = 0; i < p.Count; i++)
         {
             if (p[i].Sound == "ɔː" && i + 1 < p.Count && p[i + 1].Sound == "k")
             {
                 p.Insert(i + 1, new Phone("l", -1));
-                return;
+                return i;
             }
         }
+        return -1;
     }
 
-    /// <summary>Rick Grimes' full-mouth articulation: a primary-stressed
-    /// FLEECE or GOOSE vowel gets an extra length mark, sustaining it as
+    /// <summary>Rick Grimes' full-mouth articulation: a stressed FLEECE,
+    /// GOOSE or THOUGHT vowel gets an extra length mark, sustaining it as
     /// a pure held sound instead of letting it glide toward the next one
-    /// (sweet → swiːːt, "swEET").  Only those two vowels: they are the
-    /// class the emphasis audibly lives in, while GA's other
-    /// transcription-long vowels (LOT/THOUGHT/START ɑː ɔː) are
-    /// perceptually short-to-ordinary — "block" held came out "blaaahck",
-    /// and, measured on the "Cell block C" line over 4 identical calls
-    /// per variant, holding it drew a consistent extra pause (2 pauses
-    /// 4/4) where the unheld span matched the plain sentence.  Diphthongs
-    /// are left alone — a glide is what they are.  Density still matters
-    /// even for iː/uː: <see cref="AccentLexicon"/> strips holds from any
+    /// (sweet → swiːːt "swEET"; alright → ˌɔːːlˈɹɐɪt "AWWL-right").
+    /// THOUGHT counts because the drawn-out "all" is one of the
+    /// portrayal's signatures, and secondary stress counts with it, since
+    /// that is the syllable carrying it in the al- words.  LOT/START ɑː
+    /// stays out: held, "block" came out "blaaahck", and on the "Cell
+    /// block C" line it drew a consistent extra pause (2 pauses in 4 of 4
+    /// calls) where the unheld span matched the plain sentence.
+    /// Diphthongs are left alone — a glide is what they are.  Density
+    /// still matters: <see cref="AccentLexicon"/> strips holds from any
     /// span that ends up multi-word after merging, keeping them only on
     /// standalone words, where they measured clean.  (A third length
     /// mark, and holding every long vowel, both reliably fragmented
     /// sentences into pauses and were dropped — see git history.)</summary>
-    private static void HoldLongVowels(List<Phone> p)
+    /// <param name="restoredLAfter">Index of a vowel that only precedes
+    /// an l because <see cref="RestoreSilentL"/> put one there; holding
+    /// it produced the "warkers"/"whirl-kers" mishearings.  A natural l
+    /// (alright, old) is no obstacle.</param>
+    private static void HoldLongVowels(List<Phone> p, int restoredLAfter)
     {
+        var vowels = p.Count(phone => phone.IsVowel);
+        var seen = 0;
         for (var i = 0; i < p.Count; i++)
         {
-            // The before-l guard: a held vowel run into the restored
-            // silent l was the pattern behind the "warkers"/"whirl-kers"
-            // mishearings.
-            if (p[i].IsVowel && p[i].Stress == 1 && p[i].Sound is "iː" or "uː" &&
-                !(i + 1 < p.Count && p[i + 1].Sound == "l"))
+            if (!p[i].IsVowel)
+            {
+                continue;
+            }
+            seen++;
+            // Never the closing syllable of a polysyllable: a hold there
+            // butts against the word's own edge exactly as one on a
+            // span's last word butts against the span's, and it cost the
+            // same pacing (anymore held on its final syllable took the
+            // "democracy anymore" line from no pauses to two or three).
+            // A monosyllable has no such edge to collide with — "sweet"
+            // and "all" measured clean.
+            if (i != restoredLAfter && p[i].Stress is 1 or 2 &&
+                p[i].Sound is "iː" or "uː" or "ɔː" &&
+                (vowels == 1 || seen < vowels))
             {
                 p[i] = p[i] with { Sound = p[i].Sound + "ː" };
             }
@@ -700,9 +719,16 @@ internal static class AccentPhonology
                     {
                         break;
                     }
+                    // A second consonant joins the onset only in a real
+                    // English cluster: s + anything (street), or an
+                    // obstruent + liquid/glide (tree, play).  A liquid or
+                    // nasal cannot start one — "alright" is awl-RIGHT,
+                    // never aw-LRIGHT, and an lɹ onset the language does
+                    // not have is read as a mangled cluster.
                     if (taken == 1 &&
-                        candidate != "s" &&
-                        phones[start].Sound is not ("ɹ" or "ɾ" or "r" or "l" or "w" or "j"))
+                        (candidate is "l" or "ɹ" or "ɾ" or "r" or "w" or "j" or "m" or "n" ||
+                         (candidate != "s" &&
+                          phones[start].Sound is not ("ɹ" or "ɾ" or "r" or "l" or "w" or "j"))))
                     {
                         break;
                     }
