@@ -587,6 +587,31 @@ public class ProviderRequestTests
     }
 
     [Fact]
+    public void EnsureVoiceTexture_GuaranteesThePhoneticQualityOnEveryLine()
+    {
+        const string texture = "low, rough, creaky-voiced, breath catching in the throat";
+        // No instruction at all (auto-tagging off, or the router down):
+        // the texture becomes the line's whole instruction rather than
+        // being skipped.
+        Assert.Equal("[low, rough, creaky-voiced, breath catching in the throat] Not today.",
+            InworldProvider.EnsureVoiceTexture("Not today.", texture));
+        // An existing instruction keeps its own content and gains the
+        // texture alongside it — never replaced.
+        Assert.Equal("[cold, threatening, low, rough, creaky-voiced, breath catching in the throat] Get out.",
+            InworldProvider.EnsureVoiceTexture("[cold, threatening] Get out.", texture));
+        // Already reads as creaky in some form: left alone rather than
+        // stacking a second mention.
+        Assert.Equal("[gravelly and creaking] Fine.",
+            InworldProvider.EnsureVoiceTexture("[gravelly and creaking] Fine.", texture));
+        Assert.Equal("[a raspy edge to it] Sure.",
+            InworldProvider.EnsureVoiceTexture("[a raspy edge to it] Sure.", texture));
+        // A pure vocalization must stay an exact match — merging text in
+        // would stop Inworld recognizing it as the official sound.
+        Assert.Equal("[sigh]", InworldProvider.EnsureVoiceTexture("[sigh]", texture));
+        Assert.Equal("[laugh] [breathe]", InworldProvider.EnsureVoiceTexture("[laugh] [breathe]", texture));
+    }
+
+    [Fact]
     public async Task Accent_TaggerKeepsWordsAndLexiconAddsIpa()
     {
         var (handler, client) = Mock();
@@ -722,6 +747,27 @@ public class ProviderRequestTests
         Assert.Equal("[humming a little tune] Mm-hm-hmm.", InworldProvider.RuleBasedTags("*hums melodically*"));
         Assert.Equal("[clear throat]", InworldProvider.SalvageNonVerbalLine("*clears throat and spits*"));
         Assert.Equal("[whistling a light tune] Fwee-hoo.", InworldProvider.SalvageNonVerbalLine("*whistles*"));
+    }
+
+    [Fact]
+    public void Inworld_RuleBasedTags_ConvertsParentheticalDirectionsToo()
+    {
+        // Game dialogue scripts use *asterisks* and (parentheses)
+        // interchangeably for the same thing: a note for the actor, never
+        // words to say aloud.
+        Assert.Equal("[sigh] Fine.", InworldProvider.RuleBasedTags("(Sighs) Fine."));
+        // A whisper is not a self-vocalizing sound — it needs the line's
+        // own words, said differently — so it becomes a vocal-style
+        // instruction using Inworld's own documented phrasing, not a bare
+        // [whisper] tag and never the literal word "whispers" spoken aloud.
+        Assert.Equal("[whisper in a hushed style] Stay quiet.",
+            InworldProvider.RuleBasedTags("(whispers) Stay quiet."));
+        Assert.Equal("[whisper in a hushed style] Stay quiet.",
+            InworldProvider.RuleBasedTags("*whispers* Stay quiet."));
+        // Mid-line placement is preserved — Inworld applies a tag from
+        // where it appears onward.
+        Assert.Equal("Get down. [whisper in a hushed style] Stay low.",
+            InworldProvider.RuleBasedTags("Get down. (whispers) Stay low."));
     }
 
     [Fact]

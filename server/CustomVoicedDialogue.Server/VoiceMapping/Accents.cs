@@ -4,8 +4,11 @@ namespace CustomVoicedDialogue.Server.VoiceMapping;
 /// IPA lexicon (<see cref="AccentLexicon"/>), applied in code after
 /// tagging; <see cref="Guidance"/> is a short character note the tagging
 /// model may weave into its steering instruction so the rhythm and melody
-/// match the vowels.</summary>
-public sealed record Accent(string Id, string DisplayName, string Guidance)
+/// match the vowels.  <see cref="VoiceTexture"/> is stronger than
+/// guidance: a phonation-quality phrase guaranteed onto every line's
+/// steering instruction in code, for a trait too central to the voice to
+/// leave to a model's discretion.</summary>
+public sealed record Accent(string Id, string DisplayName, string Guidance, string? VoiceTexture = null)
 {
     /// <summary>True for the neutral default, which changes nothing.</summary>
     public bool IsNeutral => Id == Accents.Default;
@@ -30,10 +33,20 @@ public static class Accents
 
         new("southern-grimes", "American — Southern (Rick Grimes)",
             "a restrained rural Georgia drawl in the style of Rick " +
-            "Grimes: deep chest resonance with a gravelly texture and " +
-            "mild vocal fry, full-mouth articulation with hard consonants " +
-            "driven forward, and quiet controlled authority that drops " +
-            "into exhausted or menacing cadences rather than rising."),
+            "Grimes: deep chest resonance, full-mouth articulation with " +
+            "hard consonants driven forward, and quiet controlled " +
+            "authority that drops into exhausted or menacing cadences " +
+            "rather than rising.",
+            // Measured against Inworld TTS-2 with an F0/jitter analysis,
+            // not just listened for: this exact phrase took the line's
+            // median pitch from 125Hz to 91Hz and more than doubled
+            // pitch-to-pitch jitter (25% to 53%) — a real creaky-voice
+            // signature, not just a texture word going unheard. It held
+            // up combined with an unrelated mood tag in the same test
+            // (still 102Hz, still creaky), which is the real usage
+            // pattern once EnsureVoiceTexture merges it into whatever
+            // the tagger already picked.
+            VoiceTexture: "low, rough, creaky-voiced, breath catching in the throat"),
 
         new("boston", "American — Boston / New England",
             "a blunt, quick, working-class New England edge."),

@@ -199,8 +199,9 @@ public sealed class InworldProvider : ITtsProvider
         "synonyms of them, on any line. Carry weight through feeling, attitude, or volume " +
         "instead — bitter, quiet, flat, hard, warm, shaken. When in doubt, choose the brisker " +
         "reading. " +
-        "Written actions in asterisks are stage directions, not spoken words: replace them " +
-        "with the matching non-verbal tag; never leave asterisk text in the line. " +
+        "Written actions in *asterisks* or (parentheses) are stage directions, not spoken " +
+        "words: replace them with the matching non-verbal tag; never leave asterisk or " +
+        "parenthetical text in the line. " +
         "Exception: when the whole line is a written vocalization, sound, or action rather " +
         "than real dialogue (e.g. '*Hums*', 'Hm hmm.', 'Psst.', 'Ahem.', '*Whistles*'), " +
         "rewrite it as a performable version — a vivid instruction plus vocalization text. " +
@@ -252,6 +253,14 @@ public sealed class InworldProvider : ITtsProvider
         // "resigned" on lines whose content does not call for them, and
         // those words audibly stretch and fragment the delivery.
         result = result with { Text = ScrubInstruction(result.Text) };
+        // A voice texture (Rick Grimes' vocal fry) is central enough to
+        // the character that it cannot be left to whether the model
+        // happened to mention it — guaranteed onto every line in code,
+        // same principle as the pronunciation lexicon.
+        if (accent?.VoiceTexture is { Length: > 0 })
+        {
+            result = result with { Text = EnsureVoiceTexture(result.Text, accent.VoiceTexture) };
+        }
         // Accent pronunciation is applied here, in code, from the curated
         // IPA lexicon — deterministic, model-independent, and verified to
         // synthesize correctly on inworld-tts-2 (which reads /IPA/ inline).
@@ -472,6 +481,47 @@ public sealed class InworldProvider : ITtsProvider
         }).TrimStart();
     }
 
+    // Words that already say "this voice is creaky" in some form — if the
+    // tagger happened to reach for one on its own, injecting the texture
+    // phrase again would just be noise stacked on noise.
+    private static readonly System.Text.RegularExpressions.Regex VoiceTexturePresent =
+        new(@"\b(fry|creak\w*|rasp\w*|husky|hoarse)\b",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    /// <summary>Folds an accent's phonation-quality phrase into the line's
+    /// leading steering instruction — merged into an existing one so it
+    /// rides alongside whatever emotion the tagger picked (measured live:
+    /// the texture phrase's acoustic effect survives being combined with
+    /// an unrelated mood tag), or standing as its own bracket when the
+    /// line has no instruction at all, including the plain-text fallback
+    /// paths (router down, rule-based tagging) — this is a trait of the
+    /// voice itself, not conditional on auto-tagging having succeeded.
+    /// Idempotent: a tag that already reads as creaky is left alone.</summary>
+    internal static string EnsureVoiceTexture(string tagged, string texture)
+    {
+        // A pure vocalization ("[sigh]" with no spoken words after it)
+        // must stay an exact match for Inworld to render it as the
+        // official self-vocalizing sound — merging text in would turn it
+        // into an ordinary steering bracket and drop the sound entirely.
+        // No spoken words also means no voice is actually pronouncing
+        // anything for a phonation quality to colour.
+        if (SpokenWords(tagged).Length == 0)
+        {
+            return tagged;
+        }
+        var leading = System.Text.RegularExpressions.Regex.Match(tagged, @"^\s*\[([^\]]+)\]");
+        if (!leading.Success)
+        {
+            return $"[{texture}] {tagged}".TrimEnd();
+        }
+        if (VoiceTexturePresent.IsMatch(leading.Groups[1].Value))
+        {
+            return tagged;
+        }
+        var merged = leading.Groups[1].Value.TrimEnd().TrimEnd(',') + ", " + texture;
+        return tagged[..leading.Groups[1].Index] + merged + tagged[(leading.Groups[1].Index + leading.Groups[1].Length)..];
+    }
+
     // Tags Inworld performs as sounds on their own, no text needed.
     private static readonly string[] OfficialNonVerbals =
         ["[laugh]", "[breathe]", "[clear throat]", "[sigh]", "[cough]", "[yawn]"];
@@ -487,9 +537,10 @@ public sealed class InworldProvider : ITtsProvider
     {
         var missing = new List<string>();
         var haystack = tagged.ToLowerInvariant();
-        foreach (System.Text.RegularExpressions.Match action in System.Text.RegularExpressions.Regex.Matches(original, @"\*([^*]+)\*"))
+        foreach (System.Text.RegularExpressions.Match action in StageDirection.Matches(original))
         {
-            foreach (System.Text.RegularExpressions.Match word in System.Text.RegularExpressions.Regex.Matches(action.Groups[1].Value.ToLowerInvariant(), @"[a-z']+"))
+            var content = action.Groups[1].Success ? action.Groups[1].Value : action.Groups[2].Value;
+            foreach (System.Text.RegularExpressions.Match word in System.Text.RegularExpressions.Regex.Matches(content.ToLowerInvariant(), @"[a-z']+"))
             {
                 var token = word.Value;
                 if (token.Length < 4 || token.EndsWith("ly", StringComparison.Ordinal))
@@ -576,7 +627,7 @@ public sealed class InworldProvider : ITtsProvider
         {
             return "[whistling a light tune] Fwee-hoo.";
         }
-        var stripped = original.Replace("*", "").Trim();
+        var stripped = original.Replace("*", "").Replace("(", "").Replace(")", "").Trim();
         return stripped.Length > 0 ? stripped : original;
     }
 
@@ -604,14 +655,25 @@ public sealed class InworldProvider : ITtsProvider
         return string.IsNullOrEmpty(instruction) ? prepared : instruction + " " + prepared;
     }
 
-    /// <summary>Converts written asterisk actions to tags the synthesizer
-    /// performs instead of reads: Inworld's official non-verbal tag when
-    /// one matches, a bracketed steering description otherwise.  Asterisk
-    /// text must never survive to synthesis — it would be spoken aloud.</summary>
+    /// <summary>Written stage directions come delimited either way in
+    /// game dialogue scripts — *whispers* or (whispers) — and mean the
+    /// same thing: a note for the actor, never a word to say.</summary>
+    private static readonly System.Text.RegularExpressions.Regex StageDirection =
+        new(@"\*([^*]+)\*|\(([^)]+)\)", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    /// <summary>Converts written stage directions — *asterisk* or
+    /// (parenthetical), game dialogue scripts use both for the same
+    /// thing — to tags the synthesizer performs instead of reads:
+    /// Inworld's official non-verbal tag when one matches, a bracketed
+    /// steering description otherwise.  Neither delimiter's text may
+    /// survive to synthesis — it would be spoken aloud, and for a style
+    /// note like (whispers) that means the word "whispers" gets said
+    /// instead of the line actually being whispered.</summary>
     internal static string ConvertAsteriskActions(string text) =>
-        System.Text.RegularExpressions.Regex.Replace(text, @"\*([^*]+)\*", match =>
+        StageDirection.Replace(text, match =>
         {
-            var action = match.Groups[1].Value.Trim().ToLowerInvariant();
+            var action = (match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value)
+                .Trim().ToLowerInvariant();
             var wordCount = System.Text.RegularExpressions.Regex.Matches(action, @"[a-z']+").Count;
             // Only a single-word action maps to an official tag — a
             // compound like "laughs and claps" keeps every part as a
@@ -623,6 +685,13 @@ public sealed class InworldProvider : ITtsProvider
                 if (action.Contains("cough")) { return "[cough]"; }
                 if (action.Contains("yawn")) { return "[yawn]"; }
                 if (action.Contains("breath")) { return "[breathe]"; }
+                // Not a self-vocalizing sound like the ones above — a
+                // whisper needs the line's own words, just spoken
+                // differently, so it becomes a vocal-style instruction
+                // rather than an official tag.  The fuller phrasing is
+                // Inworld's own documented example; a bare [whisper]
+                // steers more weakly.
+                if (action.Contains("whisper")) { return "[whisper in a hushed style]"; }
             }
             else if (wordCount == 2 && action.Contains("clear") && action.Contains("throat"))
             {
