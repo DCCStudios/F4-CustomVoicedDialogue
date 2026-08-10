@@ -181,8 +181,17 @@ public sealed class InworldProvider : ITtsProvider
         "or purely functional line. " +
         "Capitalizing changes letter CASE only: every letter of the word must survive exactly " +
         "(alright → alRIGHT, never aRIGHT; because → beCAUSE, never bCAUSE). " +
-        "Real dialogue must keep its spoken words exactly. The line may already contain " +
-        "non-verbal tags such as [sigh]; keep every one of them where they are. " +
+        "(4) intensifying the line's own end punctuation whenever the emotion is a strong one — " +
+        "fury, desperation, terror, a shout, a plea. Do this often, not rarely: \"How many of " +
+        "you do I have to kill to save your lives?\" ending in mere \"?\" undersells it — it " +
+        "should end \"?!\". \"Get away from her!\" undersells it too — \"Get away from her!!\" " +
+        "is the read. A flat statement that is really a threat gains a \"!\" it did not have " +
+        "(\"We had a deal.\" → \"We had a deal!\" when it is spoken as an accusation). Skip this " +
+        "only for a genuinely calm or functional line. Never use an ellipsis or add a dash for a " +
+        "pause: that stretches the delivery exactly like the banned words below. " +
+        "Real dialogue must keep its spoken words exactly (punctuation is not a word — rule 4 " +
+        "above is the one exception to \"exactly\"). The line may already contain non-verbal " +
+        "tags such as [sigh]; keep every one of them where they are. " +
         "COMMIT TO A REAL EMOTION on every line — a performance with a point of view beats a " +
         "safe one. [neutral], [calm], [normal tone] and [steady] are wasted takes: work out what " +
         "the line is actually doing — a threat, a warning, a plea, a boast, a joke, suspicion, " +
