@@ -131,6 +131,9 @@ INI if you do), watch the live log, and see three status lights:
 | **Provider** | The last test or synthesis succeeded |
 | **Game** | When the plugin last contacted the app |
 
+It also carries **Shout lines fought over**, which decides whether combat
+raises the voice (see [Emotion auto-tagging](#emotion-auto-tagging-inworld)).
+
 ### TTS Provider tab
 Pick your service and configure it. The settings panel is generated from
 each provider's own schema, so every option a service supports is exposed
@@ -153,6 +156,24 @@ A grid of every NPC voice type the plugin has seen, showing the voice each
 one was automatically assigned, with a ▶ preview per row and an override
 dropdown. Assignment is a stable hash of the voice type, so it never
 shuffles between sessions. Player voice types are excluded from this grid.
+
+### Lines tab
+Every line generated so far, in one place: the dialogue text, the direction
+it was performed with, and the voice file it was written to.
+
+- **Regenerate** — re-rolls a line's delivery and plays the new take. Each
+  press asks for a genuinely different reading (a different emotion behind
+  the line, a different word stressed), so you can keep going until one
+  sounds right. The game drops its old copy and picks up the chosen take the
+  next time it plays that line.
+- **Status** — the app re-checks the audio on disk every few seconds and
+  flags lines whose wav has gone missing, whether from the game folder (a
+  cleared MO2 Overwrite, a hand-deleted file) or from its own cache. A line
+  missing from the game regenerates on its next encounter; one missing from
+  the cache needs synthesizing again.
+- **Open catalogue file** — the same record as a plain text file
+  (`CustomVoicedDialogue.lines.txt`, beside your config), one JSON object per
+  line, so it can be searched, diffed, or kept outside the app.
 
 ### Diagnostics tab
 - **Synthesis history** — the last requests with text, voice, provider,
@@ -179,6 +200,7 @@ Located at `Data\F4SE\Plugins\CustomVoicedDialogue.ini`.
 | `bReplaceVoicedPlayerLines` | `0` | **Custom player voice.** Replace the player's vanilla voice acting with TTS everywhere. |
 | `bReplaceVoicedNPCLines` | `0` | Same for NPCs (also needs `bEnableNPCLines=1`). Full re-voicing. |
 | `bForceSubtitles` | `1` | Force subtitles for lines this plugin silenced or replaced. |
+| `bSendSceneContext` | `1` | Send the scene with each line (in combat, sneaking, hostile listener) so delivery suits the situation. Set to `0` to perform every line purely on its own words. |
 | `bVerboseLog` | `0` | Log every dialogue line observed (text, path, voice type). Turn on when reporting a problem. |
 | `sPlayerVoiceTypes` | `PlayerVoiceMale01,PlayerVoiceFemale01` | Voice type editor IDs treated as "the player". |
 | `iTtsVolumePercent` | `100` | Volume applied as audio is generated (0–150). Only affects newly generated lines. |
@@ -312,7 +334,25 @@ with the content of the line instead of being read flat.
 - Pacing is biased toward a natural conversational tempo: speed words
   (slowly, drawn-out, hesitant, weary…) genuinely stretch delivery, so they
   are reserved for lines whose impact needs them.
-- `tag_model` selects the tagging model. Cheap models are fine here.
+- Lines are performed for the situation they are spoken in. The plugin sends
+  a short note about the scene — whether you are in combat, sneaking, and
+  whether the listener is hostile — and the delivery follows it: the same
+  "Thanks for the help." is warm to an ally and flatly sarcastic to someone
+  who was just shooting at you, and anything said while sneaking drops to a
+  whisper. Only these three are sent, and only when they are true, so an
+  ordinary conversation is tagged exactly as before. Turn it off with
+  `bSendSceneContext=0`.
+- **Shout lines fought over** (Server tab, on by default) raises the voice in
+  combat: a line said to someone hostile mid-fight is performed at full
+  volume, and one called to an ally is raised to carry over the noise.
+  Turned off, combat lines stay level and carry their pressure through
+  attitude instead. Sneaking always whispers regardless. This one is not part
+  of the voice fingerprint, so changing it shapes new lines without
+  regenerating the ones you already have.
+- `tag_model` selects the tagging model. Cheap models are fine here; the
+  default (`groq/llama-3.1-8b-instant`) is the fastest one measured that
+  still returns the same tagging for a repeated line, which matters because
+  tagging is cached per line.
 
 ---
 
@@ -540,8 +580,8 @@ server from something other than the plugin.
 
 | Endpoint | Purpose |
 |---|---|
-| `GET /api/status` | Version, provider, readiness, queue depth, voice fingerprints |
-| `POST /api/synth` | `{text, voicePath, voiceType, isPlayer, wait?}` → `200` wav, `202` queued, or `422` failed |
+| `GET /api/status?gameRoot=…` | Version, provider, readiness, queue depth, voice fingerprints, and the voice files whose game-side copy is stale. `gameRoot` is where the caller writes voice files — only the plugin knows the real path, and the Lines tab needs it to tell whether generated audio still exists |
+| `POST /api/synth` | `{text, voicePath, voiceType, isPlayer, wait?, context?}` → `200` wav, `202` queued, or `422` failed. `context` is a short note about the scene ("in combat; the listener is hostile to them") that shapes the delivery |
 | `GET /api/result?voicePath=…&waitMs=…` | Poll (or long-poll) for a queued line |
 | `POST /api/prefetch` | `{lines:[…]}` → queue a batch |
 | `GET /api/voices` | The current provider's voice list |

@@ -3,6 +3,7 @@
 #include "Prefetch.h"
 
 #include "Engine.h"
+#include "GameContext.h"
 #include "Settings.h"
 #include "SynthQueue.h"
 #include "VoicePath.h"
@@ -153,6 +154,12 @@ namespace CustomVoicedDialogue::Prefetch
 					.voicePath = std::string{ VoicePath::StripDataPrefix(enginePath) },
 					.text = std::string{ text },
 					.voiceType = std::string{ voiceType },
+					// Memoized, so a whole wheel samples the scene once.
+					// The listener comes from the dialogue menu; look-ahead
+					// prefetch has none yet, and by construction never
+					// targets a hostile actor, so only combat and sneaking
+					// apply there.
+					.context = Settings::SendSceneContext() ? GameContext::Current() : std::string{},
 					.isPlayer = true,
 				});
 			}

@@ -4,6 +4,7 @@
 
 #include "Compat/SilentProtagonist.h"
 #include "Engine.h"
+#include "GameContext.h"
 #include "RE/Dialogue.h"
 #include "Settings.h"
 #include "ShadowPlayback.h"
@@ -80,6 +81,9 @@ namespace CustomVoicedDialogue::Hooks::VoicePathHook
 				.voicePath = std::string{ VoicePath::StripDataPrefix(a_enginePath) },
 				.text = std::string{ a_text },
 				.voiceType = std::string{ a_voiceType },
+				// Sampled here because this runs on the game thread; the
+				// worker that submits the job cannot read actor state.
+				.context = Settings::SendSceneContext() ? GameContext::Current() : std::string{},
 				.isPlayer = a_isPlayer,
 				// This line is playing its silence right now — the audio
 				// may still catch it if it arrives early enough.

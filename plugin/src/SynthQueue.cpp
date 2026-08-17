@@ -216,10 +216,11 @@ namespace CustomVoicedDialogue::SynthQueue
 			// wait, so a whole dialogue wheel is queued in milliseconds; a
 			// picked line keeps it for a chance at an instant 200.
 			return std::format(
-				R"({{"text":"{}","voicePath":"{}","voiceType":"{}","isPlayer":{},"wait":{}}})",
+				R"({{"text":"{}","voicePath":"{}","voiceType":"{}","context":"{}","isPlayer":{},"wait":{}}})",
 				Json::Escape(a_job.text),
 				Json::Escape(a_job.voicePath),
 				Json::Escape(a_job.voiceType),
+				Json::Escape(a_job.context),
 				a_job.isPlayer ? "true" : "false",
 				a_job.playOnArrival ? "true" : "false");
 		}
@@ -318,16 +319,62 @@ namespace CustomVoicedDialogue::SynthQueue
 			return std::string{ body.substr(valueStart, valueEnd - valueStart) };
 		}
 
+		// Pulls a flat JSON array of strings ("invalidated":["a","b"]).  The
+		// values are engine voice paths — backslashes arrive escaped as \\,
+		// which is the only unescaping these ever need.
+		[[nodiscard]] std::vector<std::string> ExtractJsonStringArray(
+			const std::vector<std::uint8_t>& a_body,
+			const std::string_view a_key)
+		{
+			const std::string_view body{ reinterpret_cast<const char*>(a_body.data()), a_body.size() };
+			const auto marker = std::format("\"{}\":[", a_key);
+			const auto start = body.find(marker);
+			if (start == std::string_view::npos) {
+				return {};
+			}
+			const auto arrayEnd = body.find(']', start);
+			if (arrayEnd == std::string_view::npos) {
+				return {};
+			}
+
+			std::vector<std::string> values;
+			auto cursor = start + marker.size();
+			while (cursor < arrayEnd) {
+				const auto valueStart = body.find('"', cursor);
+				if (valueStart == std::string_view::npos || valueStart > arrayEnd) {
+					break;
+				}
+				std::string value;
+				auto index = valueStart + 1;
+				for (; index < arrayEnd && body[index] != '"'; ++index) {
+					if (body[index] == '\\' && index + 1 < arrayEnd) {
+						++index;
+					}
+					value.push_back(body[index]);
+				}
+				if (!value.empty()) {
+					values.push_back(std::move(value));
+				}
+				cursor = index + 1;
+			}
+			return values;
+		}
+
 		// How often a reachable server is re-checked, so changing the voice
 		// in the app takes effect within seconds instead of at next launch.
 		constexpr int kStatusPollSeconds = 5;
 
-		// Fetches /api/status: refreshes reachability and hands the server's
-		// voice fingerprints to the manifest, which deletes this plugin's
-		// stale generated files when the app's voice configuration changed.
+		// Fetches /api/status: refreshes reachability, hands the server's
+		// voice fingerprints to the manifest (which deletes this plugin's
+		// stale generated files when the app's voice configuration changed),
+		// and drops any line the app has generated a new take of.  The game
+		// root rides along so the app can tell whether generated audio still
+		// exists on disk — only this side knows the real path, because a mod
+		// manager's virtual file system resolves it.
 		void CheckServerStatus()
 		{
-			const auto response = TtsClient::Get(L"/api/status");
+			const auto path = std::format("/api/status?gameRoot={}", UrlEncode(g_gameRoot.string()));
+			const auto response = TtsClient::Get(Widen(path));
 			g_serverReachable.store(response.status != 0, std::memory_order_release);
 			if (response.status != 200) {
 				return;
@@ -335,6 +382,9 @@ namespace CustomVoicedDialogue::SynthQueue
 			VoiceManifest::ApplyServerFingerprints(
 				ExtractJsonString(response.body, "voiceFingerprint"),
 				ExtractJsonString(response.body, "npcVoiceFingerprint"));
+			for (const auto& voicePath : ExtractJsonStringArray(response.body, "invalidated")) {
+				VoiceManifest::Invalidate(voicePath);
+			}
 		}
 
 		// Submits new jobs and keeps server status fresh.  Never blocks on

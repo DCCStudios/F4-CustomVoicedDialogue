@@ -13,6 +13,7 @@ namespace CustomVoicedDialogue::Settings
 		bool g_replaceVoicedPlayerLines{ false };
 		bool g_replaceVoicedNPCLines{ false };
 		bool g_forceSubtitles{ true };
+		bool g_sendSceneContext{ true };
 		bool g_verboseLog{ false };
 		std::vector<std::string> g_playerVoiceTypes{ "PlayerVoiceMale01", "PlayerVoiceFemale01" };
 
@@ -129,6 +130,7 @@ namespace CustomVoicedDialogue::Settings
 		g_replaceVoicedPlayerLines = ReadBool(ini, L"General", L"bReplaceVoicedPlayerLines", g_replaceVoicedPlayerLines);
 		g_replaceVoicedNPCLines = ReadBool(ini, L"General", L"bReplaceVoicedNPCLines", g_replaceVoicedNPCLines);
 		g_forceSubtitles = ReadBool(ini, L"General", L"bForceSubtitles", g_forceSubtitles);
+		g_sendSceneContext = ReadBool(ini, L"General", L"bSendSceneContext", g_sendSceneContext);
 		g_verboseLog = ReadBool(ini, L"General", L"bVerboseLog", g_verboseLog);
 		if (const auto voiceTypes = SplitCommaList(ReadString(ini, L"General", L"sPlayerVoiceTypes", "PlayerVoiceMale01,PlayerVoiceFemale01")); !voiceTypes.empty()) {
 			g_playerVoiceTypes = voiceTypes;
@@ -261,6 +263,7 @@ namespace CustomVoicedDialogue::Settings
 	bool ReplaceVoicedPlayerLines() noexcept { return g_replaceVoicedPlayerLines; }
 	bool ReplaceVoicedNPCLines() noexcept { return g_replaceVoicedNPCLines; }
 	bool ForceSubtitles() noexcept { return g_forceSubtitles; }
+	bool SendSceneContext() noexcept { return g_sendSceneContext; }
 	bool VerboseLog() noexcept { return g_verboseLog; }
 	const std::vector<std::string>& PlayerVoiceTypes() noexcept { return g_playerVoiceTypes; }
 

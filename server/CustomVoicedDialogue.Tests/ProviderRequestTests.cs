@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using CustomVoicedDialogue.Server.Providers;
 using CustomVoicedDialogue.Server.VoiceMapping;
 
@@ -197,11 +197,240 @@ public class ProviderRequestTests
         Assert.Equal("Ashar", ParseBody(request).GetProperty("voiceId").GetString());
         // The Studio Delivery slider must reach the wire as deliveryMode.
         Assert.Equal("BALANCED", ParseBody(request).GetProperty("deliveryMode").GetString());
+        // Enhanced audio quality (denoising) is on by default.
+        Assert.True(ParseBody(request).GetProperty("enhanceGeneration").GetBoolean());
         // Full quality is requested by default.
         Assert.Equal(48000, ParseBody(request).GetProperty("audioConfig").GetProperty("sampleRateHertz").GetInt32());
         // Raw PCM must come back wrapped in a RIFF container.
         Assert.Equal((byte)'R', audio[0]);
         Assert.Equal(pcm.Length + 44, audio.Length);
+    }
+
+    [Fact]
+    public async Task Inworld_Direct_ExactText_SendsBracketVerbatimAndCallsNoModel()
+    {
+        var (handler, client) = Mock();
+        var provider = new InworldProvider(client);
+        var settings = new ProviderSettings(new Dictionary<string, string>
+        {
+            ["API_KEY"] = "cred",
+            ["auto_tag"] = "true",
+        }).WithDefaults(provider);
+
+        // exact-text inside the bracket, nothing typed outside it: the line
+        // is NOT auto-included, and no accent/fry/model is added.
+        var result = await provider.AutoTagAsync(
+            "There's a good dog.", "PlayerVoiceMale01", true, settings, CancellationToken.None,
+            accent: CustomVoicedDialogue.Server.VoiceMapping.Accents.Get("southern-grimes"),
+            direction: "[exact-text weary, breath catching]");
+
+        Assert.Equal("[weary, breath catching]", result);
+        Assert.Empty(handler.Requests);   // the model was never called
+    }
+
+    [Fact]
+    public async Task Inworld_Direct_ExactText_KeepsWhatWasTypedOutsideTheBracket()
+    {
+        var (handler, client) = Mock();
+        var provider = new InworldProvider(client);
+        var settings = new ProviderSettings(new Dictionary<string, string>
+        {
+            ["API_KEY"] = "cred",
+            ["auto_tag"] = "true",
+        }).WithDefaults(provider);
+
+        var result = await provider.AutoTagAsync(
+            "There's a good dog.", "PlayerVoiceMale01", true, settings, CancellationToken.None,
+            direction: "[exact-text flat, cold] I said leave.");
+
+        Assert.Equal("[flat, cold] I said leave.", result);
+        Assert.Empty(handler.Requests);
+    }
+
+    [Fact]
+    public async Task Inworld_Direct_PhMarker_TranslatesTheOnomatopoeiaLineToIpa()
+    {
+        var (handler, client) = Mock();
+        // The router converts the onomatopoeic line to inline IPA.
+        handler.RespondJson(JsonSerializer.Serialize(new
+        {
+            choices = new[] { new { message = new { content = "/ɑːːɹ/" } } },
+        }));
+        var provider = new InworldProvider(client);
+        var settings = new ProviderSettings(new Dictionary<string, string>
+        {
+            ["API_KEY"] = "cred",
+            ["auto_tag"] = "true",
+        }).WithDefaults(provider);
+
+        // The LINE is the onomatopoeia; *ph* translates it to voiceable IPA,
+        // keeping the bracket as steering.
+        var result = await provider.AutoTagAsync(
+            "Nnyyyaaarrgghh!", "PlayerVoiceMale01", true, settings, CancellationToken.None,
+            direction: "[loud pained scream] *ph*");
+
+        Assert.Equal("[loud pained scream] /ɑːːɹ/", result);
+        Assert.Single(handler.Requests);   // the onomatopoeia-to-IPA call
+    }
+
+    [Fact]
+    public async Task Inworld_Direct_ExactTextComposesWithPh_NoBracketOnly400()
+    {
+        var (handler, client) = Mock();
+        handler.RespondJson(JsonSerializer.Serialize(new
+        {
+            choices = new[] { new { message = new { content = "/ɑːːɹ/" } } },
+        }));
+        var provider = new InworldProvider(client);
+        var settings = new ProviderSettings(new Dictionary<string, string>
+        {
+            ["API_KEY"] = "cred",
+            ["auto_tag"] = "true",
+        }).WithDefaults(provider);
+
+        // exact-text (bracket verbatim, no fry) combined with *ph* (translate
+        // the onomatopoeia line): the marker must still supply speakable IPA,
+        // so the result is never a bracket-only line Inworld would 400 on.
+        var result = await provider.AutoTagAsync(
+            "Nnyyyaaarrgghh!", "PlayerVoiceMale01", true, settings, CancellationToken.None,
+            accent: CustomVoicedDialogue.Server.VoiceMapping.Accents.Get("southern-grimes"),
+            direction: "[loud shrill scream, gruff, furious, exact-text] *ph*");
+
+        // Verbatim bracket (no vocal fry merged in) + the IPA sound.
+        Assert.Equal("[loud shrill scream, gruff, furious] /ɑːːɹ/", result);
+    }
+
+    [Fact]
+    public async Task Inworld_Direct_ExplicitBracket_IsUsedVerbatimNotRewritten()
+    {
+        var (handler, client) = Mock();
+        var provider = new InworldProvider(client);
+        var settings = new ProviderSettings(new Dictionary<string, string>
+        {
+            ["API_KEY"] = "cred",
+            ["auto_tag"] = "true",
+        }).WithDefaults(provider);
+
+        // A bracket the user wrote themselves is used exactly — the model is
+        // never asked to paraphrase it — and the line's words are kept.
+        var result = await provider.AutoTagAsync(
+            "Attack!", "PlayerVoiceMale01", true, settings, CancellationToken.None,
+            direction: "[loud yell of physical effort, aggressive]");
+
+        Assert.Equal("[loud yell of physical effort, aggressive] Attack!", result);
+        Assert.Empty(handler.Requests);
+    }
+
+    [Fact]
+    public async Task Inworld_Direct_ExactTextWithAMarker_StripsTheMarker()
+    {
+        var (handler, client) = Mock();
+        var provider = new InworldProvider(client);
+        var settings = new ProviderSettings(new Dictionary<string, string>
+        {
+            ["API_KEY"] = "cred",
+            ["auto_tag"] = "true",
+        }).WithDefaults(provider);
+
+        // exact-text in the bracket AND a *marker* outside: the marker is a
+        // drop-the-line flag, never sent, so only the verbatim bracket goes.
+        var result = await provider.AutoTagAsync(
+            "There's a good dog.", "PlayerVoiceMale01", true, settings, CancellationToken.None,
+            direction: "[loud grunt of physical effort, exact-text] *nv*");
+
+        Assert.Equal("[loud grunt of physical effort]", result);
+        Assert.Empty(handler.Requests);
+    }
+
+    [Fact]
+    public async Task Inworld_Direct_ExactTextWithAVocalization_Voices()
+    {
+        var (handler, client) = Mock();
+        var provider = new InworldProvider(client);
+        var settings = new ProviderSettings(new Dictionary<string, string>
+        {
+            ["API_KEY"] = "cred",
+            ["auto_tag"] = "true",
+        }).WithDefaults(provider);
+
+        // Real words typed outside the bracket ARE kept — this is how a
+        // non-official sound (a grunt) is made speakable.
+        var result = await provider.AutoTagAsync(
+            "There's a good dog.", "PlayerVoiceMale01", true, settings, CancellationToken.None,
+            direction: "[exact-text loud grunt of effort] Hnngh!");
+
+        Assert.Equal("[loud grunt of effort] Hnngh!", result);
+        Assert.Empty(handler.Requests);
+    }
+
+    [Fact]
+    public async Task Inworld_Direct_NonVerbalOutsideBracket_DropsTheLine()
+    {
+        var (handler, client) = Mock();
+        var provider = new InworldProvider(client);
+        var settings = new ProviderSettings(new Dictionary<string, string>
+        {
+            ["API_KEY"] = "cred",
+            ["auto_tag"] = "true",
+        }).WithDefaults(provider);
+
+        // *...* outside the bracket only flags "drop the line" — exactly the
+        // bracket is sent, never the asterisk text or the dialogue words.
+        var result = await provider.AutoTagAsync(
+            "There's a good dog.", "PlayerVoiceMale01", true, settings, CancellationToken.None,
+            direction: "[tired] *sighs*");
+
+        Assert.Equal("[tired]", result);
+        Assert.Empty(handler.Requests);
+    }
+
+    [Fact]
+    public async Task Inworld_Direct_BareNonVerbal_WithNoBracket_BecomesASpeakableTag()
+    {
+        var (handler, client) = Mock();
+        var provider = new InworldProvider(client);
+        var settings = new ProviderSettings(new Dictionary<string, string>
+        {
+            ["API_KEY"] = "cred",
+            ["auto_tag"] = "true",
+        }).WithDefaults(provider);
+
+        // No bracket at all — the action is all there is, so it is turned
+        // into a valid speakable non-verbal rather than sent as words.
+        var result = await provider.AutoTagAsync(
+            "There's a good dog.", "PlayerVoiceMale01", true, settings, CancellationToken.None,
+            direction: "*sighs*");
+
+        Assert.Equal("[sigh]", result);
+        Assert.Empty(handler.Requests);
+    }
+
+    [Fact]
+    public async Task Inworld_DirectiveMarkers_InAnUndirectedLine_AreNotSpecial()
+    {
+        // The exact-text / *marker* rules must ONLY act when the user is
+        // directing a line (a non-empty direction).  A normal game line that
+        // happens to contain those tokens in its own text goes through
+        // ordinary tagging — the model is called, not the directive
+        // short-circuit (which never calls it).
+        foreach (var line in new[] { "Meet me at the exact-text spot.", "Well, *whatever*, fine." })
+        {
+            var (handler, client) = Mock();
+            handler.RespondJson(JsonSerializer.Serialize(new
+            {
+                choices = new[] { new { message = new { content = "[calm] " + line } } },
+            }));
+            var provider = new InworldProvider(client);
+            var settings = new ProviderSettings(new Dictionary<string, string>
+            {
+                ["API_KEY"] = "cred",
+                ["auto_tag"] = "true",
+            }).WithDefaults(provider);
+
+            await provider.AutoTagAsync(line, "PlayerVoiceMale01", true, settings, CancellationToken.None);
+
+            Assert.Single(handler.Requests);   // normal path: the model WAS called
+        }
     }
 
     [Fact]
@@ -226,8 +455,40 @@ public class ProviderRequestTests
         Assert.Equal("https://api.inworld.ai/v1/chat/completions", request.Url);
         Assert.Equal("Basic cred", request.Headers.Get("Authorization"));
         var body = ParseBody(request);
-        Assert.Equal("openai/gpt-4o-mini", body.GetProperty("model").GetString());
+        Assert.Equal("groq/llama-3.1-8b-instant", body.GetProperty("model").GetString());
         Assert.Equal(0, body.GetProperty("temperature").GetInt32());
+
+        // An ordinary conversation reports no scene, so neither the system
+        // prompt nor the line picks up anything about one.
+        var messages = body.GetProperty("messages");
+        Assert.DoesNotContain("SCENE:", messages[0].GetProperty("content").GetString());
+        Assert.DoesNotContain("Context:", messages[1].GetProperty("content").GetString());
+    }
+
+    [Fact]
+    public async Task Inworld_AutoTag_PassesTheSceneWhenTheGameReportsOne()
+    {
+        var (handler, client) = Mock();
+        handler.RespondJson(JsonSerializer.Serialize(new
+        {
+            choices = new[] { new { message = new { content = "[wary, hushed] Not today." } } },
+        }));
+        var provider = new InworldProvider(client);
+        var settings = new ProviderSettings(new Dictionary<string, string>
+        {
+            ["API_KEY"] = "cred",
+            ["auto_tag"] = "true",
+        }).WithDefaults(provider);
+
+        await provider.AutoTagAsync(
+            "Not today.", "PlayerVoiceMale01", true, settings, CancellationToken.None,
+            scene: "in combat; the listener is hostile to them");
+
+        var messages = ParseBody(Assert.Single(handler.Requests)).GetProperty("messages");
+        Assert.Contains("SCENE:", messages[0].GetProperty("content").GetString());
+        Assert.Contains(
+            "Context: in combat; the listener is hostile to them.",
+            messages[1].GetProperty("content").GetString());
     }
 
     [Fact]

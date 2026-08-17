@@ -8,7 +8,10 @@ using Microsoft.Extensions.Logging;
 
 namespace CustomVoicedDialogue.Server.Api;
 
-public sealed record SynthRequest(string Text, string VoicePath, string? VoiceType, bool IsPlayer, bool? Wait = null);
+/// <summary><paramref name="Context"/> is the plugin's short description of
+/// the scene the line is spoken in (in combat, sneaking, a hostile
+/// listener).  Empty for an ordinary conversation.</summary>
+public sealed record SynthRequest(string Text, string VoicePath, string? VoiceType, bool IsPlayer, bool? Wait = null, string? Context = null);
 
 public sealed record PrefetchRequest(List<SynthRequest> Lines);
 
@@ -76,13 +79,23 @@ public sealed class ServerHost : IAsyncDisposable
     {
         var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
-        app.MapGet("/api/status", () =>
+        app.MapGet("/api/status", (string? gameRoot) =>
         {
             LastGameContact = DateTimeOffset.Now;
             // The plugin polls this; retiring stale jobs here means a voice
             // change takes effect within one poll even if the next request
             // is a cache-warm replay.
             _synthesis.SyncVoiceGeneration();
+            // The plugin reports where it writes voice files.  Only it knows
+            // the real path (MO2 resolves it through the virtual file
+            // system), and the line catalogue needs it to tell whether
+            // generated audio still exists in the game.
+            if (!string.IsNullOrWhiteSpace(gameRoot) && !string.Equals(_config.GameRoot, gameRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                _config.GameRoot = gameRoot;
+                _config.Save();
+                _synthesis.ValidateLines();
+            }
             return Results.Json(new
             {
                 version = typeof(ServerHost).Assembly.GetName().Version?.ToString(3) ?? "0.0.0",
@@ -91,6 +104,7 @@ public sealed class ServerHost : IAsyncDisposable
                 queueDepth = _synthesis.QueueDepth,
                 voiceFingerprint = _synthesis.PlayerVoiceFingerprint(),
                 npcVoiceFingerprint = _synthesis.NpcVoiceFingerprint(),
+                invalidated = _synthesis.TakePendingInvalidations(),
             });
         });
 
@@ -103,7 +117,7 @@ public sealed class ServerHost : IAsyncDisposable
                 return Results.BadRequest(new { error = "text and voicePath are required" });
             }
 
-            var status = await _synthesis.RequestAsync(synth.Text, synth.VoicePath, synth.VoiceType ?? "", synth.IsPlayer, cancellationToken, synth.Wait ?? true);
+            var status = await _synthesis.RequestAsync(synth.Text, synth.VoicePath, synth.VoiceType ?? "", synth.IsPlayer, cancellationToken, synth.Wait ?? true, synth.Context ?? "");
             return status.State switch
             {
                 // The File.Exists guard keeps a delete race from throwing an
@@ -143,7 +157,7 @@ public sealed class ServerHost : IAsyncDisposable
             var cached = 0;
             foreach (var line in prefetch.Lines.Where(l => !string.IsNullOrWhiteSpace(l.Text) && !string.IsNullOrWhiteSpace(l.VoicePath)))
             {
-                var status = await _synthesis.RequestAsync(line.Text, line.VoicePath, line.VoiceType ?? "", line.IsPlayer, cancellationToken);
+                var status = await _synthesis.RequestAsync(line.Text, line.VoicePath, line.VoiceType ?? "", line.IsPlayer, cancellationToken, scene: line.Context ?? "");
                 if (status.State == JobState.Done)
                 {
                     cached++;

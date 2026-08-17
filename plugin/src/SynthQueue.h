@@ -9,6 +9,11 @@ namespace CustomVoicedDialogue::SynthQueue
 		std::string voicePath;
 		std::string text;
 		std::string voiceType;
+		// Short clause describing the scene this line is spoken in (combat,
+		// sneaking, a hostile listener).  Empty for an ordinary conversation.
+		// Sampled on the game thread when the job is created, because the
+		// worker thread cannot read live actor state.
+		std::string context;
 		bool isPlayer{ false };
 		// Set for hook-time misses (the line is playing its silence right
 		// now): if the wav arrives while most of the silence is still

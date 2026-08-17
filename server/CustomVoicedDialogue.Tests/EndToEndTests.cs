@@ -24,6 +24,7 @@ public class EndToEndTests : IAsyncLifetime
     private readonly string _tempDirectory = Path.Combine(Path.GetTempPath(), "cvd-e2e-" + Guid.NewGuid().ToString("N"));
     private readonly FakeProvider _fakeProvider = new();
     private ServerHost? _host;
+    private SynthesisService? _synthesis;
     private AppConfig? _config;
     private int _port;
 
@@ -39,8 +40,8 @@ public class EndToEndTests : IAsyncLifetime
 
         var registry = new ProviderRegistry(new HttpClient(new FakeRegistryClient()));
         registry.Register(_fakeProvider);
-        var synthesis = new SynthesisService(_config, registry);
-        _host = new ServerHost(_config, synthesis);
+        _synthesis = new SynthesisService(_config, registry);
+        _host = new ServerHost(_config, _synthesis);
         await _host.StartAsync();
     }
 
@@ -57,6 +58,80 @@ public class EndToEndTests : IAsyncLifetime
         catch (IOException)
         {
         }
+    }
+
+    [Fact]
+    public async Task Regenerate_PreservesTheLastDirection()
+    {
+        var synthesis = _synthesis!;
+        const string voicePath = @"Sound\Voice\TestMod.esp\PlayerVoiceFemale01\Direct_00099999_1.wav";
+
+        // Generate the line so it lands in the catalogue.
+        await synthesis.RequestAsync("Attack now.", voicePath, "PlayerVoiceFemale01", true, CancellationToken.None);
+
+        // Direct it with custom text.
+        await synthesis.RegenerateAsync(voicePath, "[loud, urgent]");
+        Assert.Equal("[loud, urgent]", synthesis.Lines.Find(voicePath)!.CustomPrompt);
+
+        // A plain Regenerate (no new direction) must NOT wipe the directed
+        // text — it stays on record for the next time Direct is opened.
+        await synthesis.RegenerateAsync(voicePath, direction: null);
+        Assert.Equal("[loud, urgent]", synthesis.Lines.Find(voicePath)!.CustomPrompt);
+    }
+
+    [Fact]
+    public async Task Takes_SelectRestoresAnEarlierTake_DeleteClearsThemAll()
+    {
+        var synthesis = _synthesis!;
+        const string voicePath = @"Sound\Voice\TestMod.esp\PlayerVoiceFemale01\Takes_00088888_1.wav";
+
+        // Generate the line (take 0), then regenerate twice (takes 1, 2).
+        await synthesis.RequestAsync("Hold the line.", voicePath, "PlayerVoiceFemale01", true, CancellationToken.None);
+        await synthesis.RegenerateAsync(voicePath);
+        await synthesis.RegenerateAsync(voicePath);
+
+        var takes = synthesis.TakesFor(voicePath);
+        Assert.Equal(3, takes.Count);
+        Assert.True(takes[^1].IsActive);                       // newest is active
+        Assert.All(takes, t => Assert.True(t.Available));      // all wavs present
+
+        // Restore take 0.
+        var takeZero = takes[0];
+        Assert.True(synthesis.SelectTake(voicePath, takeZero.CacheKey));
+        var afterSelect = synthesis.TakesFor(voicePath);
+        Assert.True(afterSelect.Single(t => t.Variant == 0).IsActive);
+        Assert.Equal(3, afterSelect.Count);                    // still three, no dupes
+
+        // Delete everything for the line.
+        synthesis.DeleteAllTakes(voicePath);
+        Assert.Empty(synthesis.TakesFor(voicePath));
+        Assert.Null(synthesis.Lines.Find(voicePath));
+        Assert.False(File.Exists(takeZero.WavPath));           // cached audio gone
+    }
+
+    [Fact]
+    public async Task Takes_DeleteOthers_KeepsTheActiveTakeAndItsAudio()
+    {
+        var synthesis = _synthesis!;
+        const string voicePath = @"Sound\Voice\TestMod.esp\PlayerVoiceFemale01\Others_00077777_1.wav";
+
+        await synthesis.RequestAsync("Fall back!", voicePath, "PlayerVoiceFemale01", true, CancellationToken.None);
+        await synthesis.RegenerateAsync(voicePath);
+        await synthesis.RegenerateAsync(voicePath);   // three takes, newest active
+
+        var before = synthesis.TakesFor(voicePath);
+        var active = before.Single(t => t.IsActive);
+        var others = before.Where(t => !t.IsActive).ToList();
+
+        synthesis.DeleteOtherTakes(voicePath);
+
+        // Only the active take survives, still playable; the line is intact.
+        var after = synthesis.TakesFor(voicePath);
+        Assert.Single(after);
+        Assert.True(after[0].IsActive);
+        Assert.True(File.Exists(active.WavPath));
+        Assert.NotNull(synthesis.Lines.Find(voicePath));
+        Assert.All(others, o => Assert.False(File.Exists(o.WavPath)));   // their audio freed
     }
 
     [Fact]

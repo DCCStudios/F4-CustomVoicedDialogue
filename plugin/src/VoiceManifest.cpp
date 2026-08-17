@@ -173,6 +173,35 @@ namespace CustomVoicedDialogue::VoiceManifest
 		return false;
 	}
 
+	void Invalidate(const std::string_view a_voicePath)
+	{
+		const std::scoped_lock lock{ g_lock };
+		if (g_manifestPath.empty() || a_voicePath.empty()) {
+			return;
+		}
+		// Engine paths vary in casing, and only files this plugin recorded
+		// may be deleted — an unknown path is ignored outright.  The match
+		// is resolved before anything mutates the map, because DeleteDoomed
+		// erases entries.
+		const auto match = std::find_if(
+			g_entries.begin(),
+			g_entries.end(),
+			[a_voicePath](const auto& a_entry) {
+				return a_entry.second != Kind::kDoomed &&
+				       a_entry.first.size() == a_voicePath.size() &&
+				       _strnicmp(a_entry.first.c_str(), a_voicePath.data(), a_voicePath.size()) == 0;
+			});
+		if (match == g_entries.end()) {
+			return;
+		}
+
+		match->second = Kind::kDoomed;
+		logger::info("The companion app generated a new take of '{}'; removing the old audio", match->first);
+		// A locked file simply stays doomed and is retried later.
+		static_cast<void>(DeleteDoomed());
+		Save();
+	}
+
 	void ApplyServerFingerprints(const std::string_view a_player, const std::string_view a_npc)
 	{
 		const std::scoped_lock lock{ g_lock };

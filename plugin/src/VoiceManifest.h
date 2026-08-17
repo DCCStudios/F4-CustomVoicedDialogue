@@ -29,4 +29,10 @@ namespace CustomVoicedDialogue::VoiceManifest
 	// fingerprint adopted.  Empty fingerprints (no provider configured) are
 	// ignored.  Called from the synth worker thread only.
 	void ApplyServerFingerprints(std::string_view a_player, std::string_view a_npc);
+
+	// Deletes one generated voice file so the line regenerates on its next
+	// encounter.  Used when the companion app produces a new take of a line
+	// the game already has audio for.  Only tracked files are touched, so a
+	// stray path can never delete something this plugin did not write.
+	void Invalidate(std::string_view a_voicePath);
 }

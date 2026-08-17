@@ -142,17 +142,23 @@ public sealed class InworldProvider : ITtsProvider
         new("sample_rate", "Sample rate", OptionKind.Choice, "48000",
             "Requested PCM sample rate (Hz). 48000 is Inworld's full quality; changing this regenerates cached audio.",
             Choices: ["48000", "44100", "24000", "22050"]),
+        new("enhance", "Enhanced audio quality", OptionKind.Toggle, "true",
+            "Inworld's post-synthesis denoising (the Studio \"Enhanced\" toggle) — reduces " +
+            "background noise and artifacts. On by default; changing it regenerates cached audio."),
         new("auto_tag", "Emotion auto-tagging", OptionKind.Toggle, "false",
             "Uses Inworld's LLM Router (same API key, billed at provider rates) to add a short " +
             "steering instruction and non-verbal tags to each line before synthesis. " +
             "inworld-tts-2 only; each line is tagged once and cached. Toggling regenerates cached audio."),
-        new("tag_model", "Tagging model", OptionKind.Choice, "openai/gpt-4o-mini",
+        new("tag_model", "Tagging model", OptionKind.Choice, "groq/llama-3.1-8b-instant",
             "LLM Router model used for auto-tagging (fast, inexpensive models; all verified " +
-            "available on Inworld's router). Any other provider/model string the router supports " +
-            "also works, but some need plan credits — the Test synthesis box reports availability " +
-            "errors.",
+            "available on Inworld's router). The default is the fastest model measured that " +
+            "returns stable output for a repeated line — tagging is cached per line, so a model " +
+            "that varies between identical calls costs extra synthesis. Any other provider/model " +
+            "string the router supports also works, but some need plan credits — the Test " +
+            "synthesis box reports availability errors.",
             Choices:
             [
+                "groq/llama-3.1-8b-instant",
                 "openai/gpt-4o-mini",
                 "google/gemini-2.5-flash-lite",
                 "google/gemini-3.1-flash-lite",
@@ -244,6 +250,50 @@ public sealed class InworldProvider : ITtsProvider
         "performance must include every one of them. " +
         "Reply with the finished line only, no explanations.";
 
+    /// <summary>Scene direction appended to the tagger's system prompt, only
+    /// when the game actually reported something noteworthy.  Measured: the
+    /// extra tokens cost no detectable latency (the system prompt already
+    /// dwarfs them), and the listener-hostility signal alone flips a line's
+    /// whole meaning — "Thanks for the help" is sincere to an ally and
+    /// sarcastic to someone who was just shooting at the speaker.</summary>
+    internal static string ScenePrompt(bool shoutInCombat) =>
+        " SCENE: the line is spoken in the situation described after \"Context:\". Let it decide " +
+        "what the line is doing and how it comes out — a line said under gunfire is not the line " +
+        "said across a quiet room, and a line said to someone hostile is not the line said to a " +
+        "friend. " +
+        "VOLUME follows the situation. " +
+        (shoutInCombat
+            ? "In combat with a hostile listener the speaker is shouting over gunfire at someone " +
+              "trying to kill them: reach for loud, shouting, roaring, raised to a yell, and let " +
+              "a genuinely shouted line intensify its end punctuation under rule (4). In combat " +
+              "with nobody hostile listening the voice is only raised to carry over the noise — " +
+              "urgent and carrying, called out to someone on the same side, never enraged or " +
+              "roaring at them. "
+            : "Combat never raises the volume here: a line under fire is urgent and hard, but it " +
+              "is not shouted, roared or yelled, and it does not gain punctuation for volume. " +
+              "Carry the pressure through attitude, breath and pitch instead. ") +
+        "A hostile listener with no fighting going on is the opposite again: that is where a " +
+        "cold, quiet, controlled menace lands hardest, so keep those hard and low rather than " +
+        "loud. " +
+        "Sneaking always wins: a line delivered while sneaking stays at a whisper no matter who " +
+        "is listening or what is happening. " +
+        "Worked examples, because the difference is easy to lose: " +
+        (shoutInCombat
+            ? "in combat, listener hostile — \"Get away from her.\" becomes " +
+              "[furious, shouting over the gunfire, hoarse with rage] Get away from her!!; " +
+              "in combat, nobody hostile — \"Are you hurt?\" becomes " +
+              "[urgent, raised to carry over the noise, afraid for them] Are you hurt?! — never " +
+              "[angry, full of hatred], because that listener is on the speaker's side; "
+            : "in combat, listener hostile — \"Get away from her.\" becomes " +
+              "[hard, teeth gritted, breathing fast] Get away from her.; " +
+              "in combat, nobody hostile — \"Are you hurt?\" becomes " +
+              "[urgent, tight with worry] Are you hurt?; ") +
+        "listener hostile, no combat — \"Drop it. Now.\" becomes " +
+        "[cold, quiet, dangerously controlled] Drop it. Now. — low and hard, not shouted; " +
+        "sneaking — \"Stay behind me.\" becomes " +
+        "[barely above a whisper, tense] Stay behind me. " +
+        "Never mention the situation, and never add words to the line because of it.";
+
     /// <summary>Accent direction appended to the tagger's system prompt.
     /// The model only colours the steering instruction — pronunciation is
     /// applied afterwards in code from the curated IPA lexicon, which needs
@@ -269,17 +319,297 @@ public sealed class InworldProvider : ITtsProvider
     /// Router (same API key), falling back to cheap rule-based tags when
     /// the router is unavailable or rewrites the spoken words.  Runs at
     /// temperature 0 so a line tags the same way every time and the audio
-    /// cache stays stable.</summary>
-    public async Task<string> AutoTagAsync(string text, string voiceType, bool isPlayer, ProviderSettings settings, CancellationToken cancellationToken, string voicePath = "", VoiceMapping.Accent? accent = null, int accentImperfection = 0) =>
-        (await AutoTagDetailedAsync(text, voiceType, isPlayer, settings, cancellationToken, voicePath, accent, accentImperfection)).Text;
+    /// cache stays stable.
+    ///
+    /// <paramref name="retake"/> is the exception: when the user asks the
+    /// app for another reading of a line, an identical answer is useless, so
+    /// a retake deliberately loosens sampling and asks for a different
+    /// interpretation.  Retakes are never the game's own path.</summary>
+    private enum DirectiveKind { Normal, ExplicitBracket, ExactText, NonVerbal, PhoneticSound }
 
-    public async Task<AutoTagResult> AutoTagDetailedAsync(string text, string voiceType, bool isPlayer, ProviderSettings settings, CancellationToken cancellationToken, string voicePath = "", VoiceMapping.Accent? accent = null, int accentImperfection = 0)
+    /// <summary>What a typed "Direct this line" instruction resolves to.
+    /// For <see cref="DirectiveKind.ExactText"/>, Bracket is the verbatim
+    /// bracket and Spoken is whatever the user typed outside it.  For
+    /// <see cref="DirectiveKind.NonVerbal"/>, Bracket is the remaining
+    /// steering and Spoken is the *action* that replaces the line.  For
+    /// Normal, Bracket is the steering direction.  <paramref name="Verbatim"/>
+    /// carries the "exact-text" modifier, which only affects the bracket
+    /// (verbatim, no vocal fry merged in) and never the markers outside it.</summary>
+    private readonly record struct Directive(DirectiveKind Kind, string Bracket, string Spoken, bool Verbatim = false);
+
+    private static readonly System.Text.RegularExpressions.Regex ExactTextMarker =
+        new(@"\bexact[-\s]?text\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+    private static readonly System.Text.RegularExpressions.Regex BracketSpan =
+        new(@"\[([^\]]*)\]", System.Text.RegularExpressions.RegexOptions.Compiled);
+    private static readonly System.Text.RegularExpressions.Regex AsteriskSpan =
+        new(@"\*([^*]+)\*", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    /// <summary>Parses a typed direction into its handling mode.  The user
+    /// may write an explicit [bracket] with content outside it, or just the
+    /// direction on its own; "exact-text" inside the bracket and a
+    /// *non-verbal* outside it are the two special markers.</summary>
+    private static Directive ParseDirective(string raw)
     {
-        var result = await TagCoreAsync(text, voiceType, isPlayer, settings, cancellationToken, voicePath, accent, accentImperfection);
+        raw = raw.Trim();
+        var bracketMatch = BracketSpan.Match(raw);
+        string bracket, outside;
+        if (bracketMatch.Success)
+        {
+            bracket = bracketMatch.Groups[1].Value.Trim();
+            outside = (raw[..bracketMatch.Index] + raw[(bracketMatch.Index + bracketMatch.Length)..]).Trim();
+        }
+        else
+        {
+            bracket = raw;
+            outside = "";
+        }
+
+        // "exact-text" is a modifier on the BRACKET only: it makes the bracket
+        // verbatim and suppresses the vocal fry that would be merged in.  It
+        // never changes what happens outside the bracket, so it is read as a
+        // flag here and stripped from the bracket — the markers below still
+        // decide the spoken content.
+        var verbatim = ExactTextMarker.IsMatch(bracket);
+        if (verbatim)
+        {
+            bracket = ExactTextMarker.Replace(bracket, " ");
+            bracket = System.Text.RegularExpressions.Regex.Replace(bracket, @"\s{2,}", " ").Trim(' ', ',', ';');
+        }
+
+        // A *marker* outside the bracket (or anywhere, when no explicit
+        // bracket was written) decides the spoken content, independent of
+        // exact-text.  "*ph*" translates the onomatopoeic line to IPA; any
+        // other marker just drops the line and sends the bracket.
+        var scope = bracketMatch.Success ? outside : raw;
+        var asterisk = AsteriskSpan.Match(scope);
+        if (asterisk.Success)
+        {
+            var steer = bracketMatch.Success
+                ? bracket
+                : scope.Remove(asterisk.Index, asterisk.Length).Trim();
+            var marker = asterisk.Groups[1].Value.Trim().ToLowerInvariant();
+            var kind = marker == "ph" ? DirectiveKind.PhoneticSound : DirectiveKind.NonVerbal;
+            return new Directive(kind, steer, asterisk.Value, verbatim);
+        }
+
+        // exact-text with no marker → the verbatim passthrough: the bracket
+        // exactly as typed, plus only what the user typed outside it.
+        if (verbatim)
+        {
+            return new Directive(DirectiveKind.ExactText, bracket, outside);
+        }
+
+        // An explicit [bracket] the user wrote is used verbatim as the
+        // steering — only free text (no brackets) is handed to the model to
+        // interpret.  Writing brackets means "use exactly these".
+        return bracketMatch.Success
+            ? new Directive(DirectiveKind.ExplicitBracket, bracket, outside)
+            : new Directive(DirectiveKind.Normal, bracket, "");
+    }
+
+    /// <summary>Translates an onomatopoeic sound line (e.g. "Nnyyyaaarrgghh!")
+    /// into inline IPA the synthesizer voices cleanly as that sound — the
+    /// "*ph*" Direct marker.  Inworld mangles the raw letter clusters but
+    /// reads /IPA/ reliably, producing one continuous vocalization instead of
+    /// fragmented letters.  Falls back to a keyword-based vowel if the router
+    /// is unavailable, so a sound always comes out.</summary>
+    private async Task<string> OnomatopoeiaToIpaAsync(string onomatopoeia, ProviderSettings settings, CancellationToken cancellationToken)
+    {
+        var messages = new List<object>
+        {
+            new Dictionary<string, string>
+            {
+                ["role"] = "system",
+                ["content"] =
+                    "You convert a stylized onomatopoeic sound (like \"Nnyyyaaarrgghh!\") into inline " +
+                    "IPA a text-to-speech engine voices as that sound. TTS mangles the raw letter " +
+                    "clusters, but reads IPA between slashes cleanly. Map the sound to its core " +
+                    "vowel, lengthened with ː, plus at most a light consonant: a scream or roar is " +
+                    "an open back /ɑːː/ (add a trailing ɹ or x for a rasp: /ɑːːɹ/); a groan is " +
+                    "/ʌːː/ or /ɜːː/; a shriek is /iːː/ or /æːː/; a grunt is a short /ʌ/ maybe with a " +
+                    "nasal /ʌŋ/; a gasp is /hɑː/. Match the vowel to the letters given. Reply with " +
+                    "ONLY the IPA between slashes, e.g. /ɑːːɹ/ — no words, no brackets, no explanation.",
+            },
+            new Dictionary<string, string>
+            {
+                ["role"] = "user",
+                ["content"] = $"Convert this sound to IPA: {onomatopoeia.Trim()}",
+            },
+        };
+        try
+        {
+            var body = new Dictionary<string, object>
+            {
+                ["model"] = settings.Get("tag_model", "groq/llama-3.1-8b-instant"),
+                ["temperature"] = 0.3,
+                ["max_tokens"] = 24,
+                ["messages"] = messages,
+            };
+            using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.inworld.ai/v1/chat/completions")
+            {
+                Content = ProviderHelpers.Json(body),
+            };
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", settings.Get("API_KEY"));
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(TimeSpan.FromSeconds(10));
+            using var response = await _http.SendAsync(request, timeout.Token);
+            if (response.IsSuccessStatusCode)
+            {
+                using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(timeout.Token));
+                var raw = json.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
+                var cleaned = CleanIpaSound(raw);
+                if (cleaned.Length > 0)
+                {
+                    return cleaned;
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // Fall through to the deterministic default.
+        }
+        return FallbackIpaSound(onomatopoeia);
+    }
+
+    /// <summary>Pulls the /IPA/ span out of the model reply, or wraps a bare
+    /// IPA answer in slashes.  Returns "" if nothing usable came back.</summary>
+    private static string CleanIpaSound(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return "";
+        }
+        var reply = raw.Trim();
+        var slashed = System.Text.RegularExpressions.Regex.Match(reply, @"/[^/]+/");
+        if (slashed.Success)
+        {
+            return slashed.Value;
+        }
+        // No slashes: take the first token, strip brackets/quotes, and wrap it
+        // ourselves so it still reaches Inworld as inline IPA.
+        var newline = reply.IndexOf('\n');
+        if (newline >= 0)
+        {
+            reply = reply[..newline].Trim();
+        }
+        reply = System.Text.RegularExpressions.Regex.Replace(reply, @"\[[^\]]*\]", "").Trim(' ', '"', '\'', '`');
+        return reply.Length > 0 ? $"/{reply}/" : "";
+    }
+
+    /// <summary>Keyword-based IPA vowel so a phonetic take always voices
+    /// something even when the router cannot be reached.  Chooses the vowel
+    /// from the dominant letters of the onomatopoeia.</summary>
+    private static string FallbackIpaSound(string onomatopoeia)
+    {
+        var s = onomatopoeia.ToLowerInvariant();
+        if (s.Contains("ee") || s.Contains("ii")) { return "/iːː/"; }   // shriek
+        if (s.Contains("uu") || s.Contains("oo")) { return "/ʌːː/"; }   // groan
+        if (s.Contains("ng") || s.Contains("nn")) { return "/ʌŋ/"; }    // grunt
+        return "/ɑːːɹ/";   // the default scream / roar
+    }
+
+    public async Task<string> AutoTagAsync(string text, string voiceType, bool isPlayer, ProviderSettings settings, CancellationToken cancellationToken, string voicePath = "", VoiceMapping.Accent? accent = null, int accentImperfection = 0, int retake = 0, string scene = "", bool shoutInCombat = true, string direction = "") =>
+        (await AutoTagDetailedAsync(text, voiceType, isPlayer, settings, cancellationToken, voicePath, accent, accentImperfection, retake, scene, shoutInCombat, direction)).Text;
+
+    public async Task<AutoTagResult> AutoTagDetailedAsync(string text, string voiceType, bool isPlayer, ProviderSettings settings, CancellationToken cancellationToken, string voicePath = "", VoiceMapping.Accent? accent = null, int accentImperfection = 0, int retake = 0, string scene = "", bool shoutInCombat = true, string direction = "")
+    {
+        // Two manual escape hatches the "Direct this line" box understands,
+        // handled before any automatic tagging so they genuinely bypass it.
+        // These act ONLY when the user is directing a line: a non-empty
+        // `direction` comes solely from the Direct button.  Normal game
+        // dialogue, prefetch, and plain Regenerate all pass no direction, so
+        // a line whose own text contains "exact-text" or a *marker* is tagged
+        // normally — the markers are read from the direction, never the line.
+        if (!string.IsNullOrWhiteSpace(direction))
+        {
+            var directive = ParseDirective(direction);
+            if (directive.Kind == DirectiveKind.ExactText)
+            {
+                // The user composes exactly what is sent: their bracket
+                // verbatim, then only what they typed outside it — the
+                // dialogue line is NOT auto-included, and nothing (fry,
+                // scene, accent, model) is added.
+                var exact = directive.Spoken.Length > 0
+                    ? $"[{directive.Bracket}] {directive.Spoken}"
+                    : $"[{directive.Bracket}]";
+                return new AutoTagResult(exact, null);
+            }
+            if (directive.Kind == DirectiveKind.NonVerbal)
+            {
+                // The *...* is only a marker meaning "this line is non-verbal,
+                // drop the spoken words" — the asterisk text is never sent.
+                // What gets performed is exactly the bracket the user wrote.
+                // If they wrote no bracket (just a bare *action*), the action
+                // itself is turned into a valid speakable non-verbal, since
+                // there is nothing in the brackets to send.
+                var body = directive.Bracket.Length > 0
+                    ? $"[{directive.Bracket}]"
+                    : RuleBasedTags(directive.Spoken);
+                return new AutoTagResult(body, null);
+            }
+            if (directive.Kind == DirectiveKind.PhoneticSound)
+            {
+                // The dialogue line is itself an onomatopoeic sound (e.g.
+                // "Nnyyyaaarrgghh!") that Inworld can't voice — it chokes on
+                // the letter clusters and reads them in fragments.  Translate
+                // it to inline IPA, which the engine voices cleanly as one
+                // continuous sound (measured: IPA is a single sustained burst
+                // where the raw spelling fragments).  The bracket, if any,
+                // still steers; the character voice (fry) still layers on.
+                var ipa = await OnomatopoeiaToIpaAsync(text, settings, cancellationToken);
+                var built = directive.Bracket.Length > 0
+                    ? $"[{directive.Bracket}] {ipa}"
+                    : ipa;
+                // exact-text keeps the bracket verbatim — no fry merged in.
+                if (!directive.Verbatim && accent?.VoiceTexture is { Length: > 0 })
+                {
+                    built = EnsureVoiceTexture(built, accent.VoiceTexture);
+                }
+                return new AutoTagResult(built, null);
+            }
+            if (directive.Kind == DirectiveKind.ExplicitBracket)
+            {
+                // The user wrote their own [bracket]: use it verbatim as the
+                // steering instead of letting the model paraphrase it.  The
+                // line's own words are kept (delivery only), and the
+                // character voice (fry) and accent still layer on — that is
+                // the difference from exact-text, which strips those.
+                var built = $"[{directive.Bracket}] {text}";
+                if (accent?.VoiceTexture is { Length: > 0 })
+                {
+                    built = EnsureVoiceTexture(built, accent.VoiceTexture);
+                }
+                if (accent is { IsNeutral: false } && VoiceMapping.AccentLexicon.Has(accent) &&
+                    settings.Get("model_id", "inworld-tts-2").Contains("tts-2", StringComparison.OrdinalIgnoreCase))
+                {
+                    var lineKey = voicePath.Length > 0 ? voicePath : text;
+                    built = VoiceMapping.AccentLexicon.Apply(accent, built, lineKey, accentImperfection);
+                }
+                return new AutoTagResult(built, null);
+            }
+            // Normal direction (free text, no brackets): hand the steering to
+            // the model to interpret.
+            direction = directive.Bracket;
+        }
+
+        var result = await TagCoreAsync(text, voiceType, isPlayer, settings, cancellationToken, voicePath, accent, accentImperfection, retake, scene, shoutInCombat, direction);
         // Enforced, not merely requested: the model reaches for "slow" and
         // "resigned" on lines whose content does not call for them, and
         // those words audibly stretch and fragment the delivery.
         result = result with { Text = ScrubInstruction(result.Text) };
+
+        // A retake exists to sound different, so the one outcome it must not
+        // produce is a line with no steering at all — indistinguishable from
+        // not tagging.  That happens when loose sampling fills the whole
+        // instruction with pacing words and the scrub above empties it, which
+        // is common on exactly the grief-and-despair lines people re-roll
+        // most.  A roll costs a few hundred milliseconds and this is a
+        // deliberate user action, so try again rather than waste the take.
+        for (var roll = 0; roll < 3 && retake > 0 && !result.Text.TrimStart().StartsWith('['); roll++)
+        {
+            var again = await TagCoreAsync(text, voiceType, isPlayer, settings, cancellationToken, voicePath, accent, accentImperfection, retake + roll + 1, scene, shoutInCombat, direction);
+            result = again with { Text = ScrubInstruction(again.Text) };
+        }
         // A voice texture (Rick Grimes' vocal fry) is central enough to
         // the character that it cannot be left to whether the model
         // happened to mention it — guaranteed onto every line in code,
@@ -302,9 +632,11 @@ public sealed class InworldProvider : ITtsProvider
         return result;
     }
 
-    private async Task<AutoTagResult> TagCoreAsync(string text, string voiceType, bool isPlayer, ProviderSettings settings, CancellationToken cancellationToken, string voicePath, VoiceMapping.Accent? accent, int accentImperfection)
+    private async Task<AutoTagResult> TagCoreAsync(string text, string voiceType, bool isPlayer, ProviderSettings settings, CancellationToken cancellationToken, string voicePath, VoiceMapping.Accent? accent, int accentImperfection, int retake = 0, string scene = "", bool shoutInCombat = true, string direction = "")
     {
-        if (!settings.GetBool("auto_tag", false) ||
+        // A direction typed for this specific line is an explicit request to
+        // steer it, so it works even with auto-tagging switched off.
+        if ((!settings.GetBool("auto_tag", false) && string.IsNullOrWhiteSpace(direction)) ||
             !settings.Get("model_id", "inworld-tts-2").Contains("tts-2", StringComparison.OrdinalIgnoreCase) ||
             string.IsNullOrWhiteSpace(text) ||
             text.TrimStart().StartsWith('['))
@@ -324,8 +656,14 @@ public sealed class InworldProvider : ITtsProvider
             {
                 var body = new Dictionary<string, object>
                 {
-                    ["model"] = settings.Get("tag_model", "openai/gpt-4o-mini"),
-                    ["temperature"] = 0,
+                    ["model"] = settings.Get("tag_model", "groq/llama-3.1-8b-instant"),
+                    // Temperature 0 keeps a line's tagging (and therefore its
+                    // cached audio) stable.  A retake is the one case where
+                    // repeating the previous answer is the failure mode, so it
+                    // samples loosely enough to land somewhere else — unless
+                    // the user typed a direction, where the goal is to follow
+                    // what they asked for rather than to wander.
+                    ["temperature"] = !string.IsNullOrWhiteSpace(direction) ? 0.4 : retake > 0 ? 1.0 : 0,
                     ["max_tokens"] = 200,
                     ["messages"] = a_messages,
                 };
@@ -361,17 +699,41 @@ public sealed class InworldProvider : ITtsProvider
             var lineKey = voicePath.Length > 0 ? voicePath : text;
             var take = 1 + VoiceMapping.VoiceMapper.Fnv1a(lineKey) % 7;
             var accented = accent is { IsNeutral: false };
+            // An ordinary conversation reports nothing, so a calm exchange
+            // pays no extra tokens and is steered exactly as before.
+            var hasScene = !string.IsNullOrWhiteSpace(scene);
+            var hasDirection = !string.IsNullOrWhiteSpace(direction);
             var messages = new List<object>
             {
                 new Dictionary<string, string>
                 {
                     ["role"] = "system",
-                    ["content"] = TaggerSystemPrompt + (accented ? AccentPrompt(accent!, VoiceMapping.Accents.LineSlips(lineKey, accentImperfection)) : ""),
+                    ["content"] = TaggerSystemPrompt +
+                        (hasScene ? ScenePrompt(shoutInCombat) : "") +
+                        (accented ? AccentPrompt(accent!, VoiceMapping.Accents.LineSlips(lineKey, accentImperfection)) : ""),
                 },
                 new Dictionary<string, string>
                 {
                     ["role"] = "user",
-                    ["content"] = $"Speaker: {(isPlayer ? "the player character" : "an NPC")} (voice type {voiceType}). Take {take} of 7.\nLine: {prepared}",
+                    ["content"] =
+                        $"Speaker: {(isPlayer ? "the player character" : "an NPC")} (voice type {voiceType}). Take {take} of 7.\n" +
+                        (hasScene ? $"Context: {scene.Trim()}.\n" : "") +
+                        // A direction typed for this one line outranks the
+                        // "find something different" nudge: the user has said
+                        // what they want, so the take chases that rather than
+                        // wandering off after novelty.
+                        (hasDirection
+                            ? $"THE DIRECTOR ASKS FOR THIS SPECIFICALLY: {direction.Trim()}\n" +
+                              "Build the steering instruction around that direction and follow it closely. " +
+                              "Everything else above still applies — the spoken words stay exactly as written, " +
+                              "and the instruction goes in square brackets before the line.\n"
+                            : retake > 0
+                                ? "ALTERNATE TAKE: this line has already been performed the obvious way, so find a " +
+                                  "genuinely different angle — a different emotion or attitude behind it, a different " +
+                                  "word stressed, a different shift in pitch or volume. Still answer in the required " +
+                                  "format, steering instruction in square brackets first.\n"
+                                : "") +
+                        $"Line: {prepared}",
                 },
             };
             var tagged = await CompleteAsync(messages);
@@ -764,6 +1126,8 @@ public sealed class InworldProvider : ITtsProvider
             // The Studio "Delivery" slider; tts-2 uses this and ignores
             // temperature, tts-1.x the reverse — sending both is harmless.
             ["deliveryMode"] = settings.Get("delivery", "balanced").ToUpperInvariant(),
+            // Post-synthesis denoising (the Studio "Enhanced" toggle).
+            ["enhanceGeneration"] = settings.GetBool("enhance", true),
         };
 
         using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.inworld.ai/tts/v1/voice")

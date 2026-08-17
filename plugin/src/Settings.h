@@ -12,6 +12,11 @@ namespace CustomVoicedDialogue::Settings
 	[[nodiscard]] bool ReplaceVoicedPlayerLines() noexcept;
 	[[nodiscard]] bool ReplaceVoicedNPCLines() noexcept;
 	[[nodiscard]] bool ForceSubtitles() noexcept;
+	// Send a short description of the scene (in combat, sneaking, a hostile
+	// listener) with each line, so the delivery can suit the situation.
+	// Costs nothing measurable in latency; turn it off to keep every line
+	// performed purely on its own words.
+	[[nodiscard]] bool SendSceneContext() noexcept;
 	[[nodiscard]] bool VerboseLog() noexcept;
 	[[nodiscard]] const std::vector<std::string>& PlayerVoiceTypes() noexcept;
 	// Gain applied to TTS audio as it is written (percent, 0-150; 100 = as

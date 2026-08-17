@@ -42,6 +42,13 @@ public sealed class AppConfig
     /// flawless one; 0 performs every line identically.</summary>
     public int AccentImperfection { get; set; } = 15;
 
+    /// <summary>Whether a line shouted in combat at someone hostile is
+    /// performed at full volume.  Deliberately an app setting rather than a
+    /// provider option: provider options feed the voice fingerprint, so
+    /// adding one there would delete and regenerate every existing line.
+    /// Changing this shapes newly generated lines only.</summary>
+    public bool ShoutInCombat { get; set; } = true;
+
     public bool StartServerOnLaunch { get; set; } = true;
     public bool StartMinimized { get; set; }
     public bool CheckForUpdates { get; set; } = true;
@@ -49,6 +56,12 @@ public sealed class AppConfig
 
     /// <summary>Where generated/cached wavs live; defaults beside config.</summary>
     public string? CacheDirectory { get; set; }
+
+    /// <summary>The game folder the plugin writes voice files into, reported
+    /// by the plugin when it checks in.  Persisted so the line catalogue can
+    /// still tell whether generated audio survives on disk before the game
+    /// has been launched this session.</summary>
+    public string? GameRoot { get; set; }
 
     [JsonIgnore]
     public string ConfigPath { get; private set; } = "";
@@ -113,6 +126,14 @@ public sealed class AppConfig
         }
         var configDirectory = Path.GetDirectoryName(string.IsNullOrEmpty(ConfigPath) ? DefaultConfigPath() : ConfigPath)!;
         return Path.Combine(configDirectory, "soundcache");
+    }
+
+    /// <summary>The generated-line catalogue: a plain text file beside the
+    /// config, readable and searchable outside the app.</summary>
+    public string ResolveLineLogPath()
+    {
+        var configDirectory = Path.GetDirectoryName(string.IsNullOrEmpty(ConfigPath) ? DefaultConfigPath() : ConfigPath)!;
+        return Path.Combine(configDirectory, "CustomVoicedDialogue.lines.txt");
     }
 
     // ---- secret protection ------------------------------------------------

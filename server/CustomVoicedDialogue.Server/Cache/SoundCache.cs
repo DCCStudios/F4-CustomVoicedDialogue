@@ -46,6 +46,19 @@ public sealed class SoundCache
         return path;
     }
 
+    /// <summary>Deletes one cached wav by key.  No-op if it is already gone.</summary>
+    public void Delete(string key)
+    {
+        try
+        {
+            File.Delete(PathFor(key));
+        }
+        catch (IOException)
+        {
+            // In use or already gone; nothing to do.
+        }
+    }
+
     /// <summary>Deletes cached audio older than the given age; returns the
     /// number of files removed.  Surfaced as a GUI maintenance action.</summary>
     public int Prune(TimeSpan maxAge)

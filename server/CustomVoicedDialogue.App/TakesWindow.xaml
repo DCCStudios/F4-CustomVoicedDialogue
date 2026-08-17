@@ -1,0 +1,80 @@
+<Window x:Class="CustomVoicedDialogue.App.TakesWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Takes" Height="440" Width="720"
+        WindowStartupLocation="CenterOwner" ResizeMode="CanResize"
+        Background="#FF1E1E24" Foreground="#FFE8E8E8">
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#FFE8E8E8"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="10,4"/>
+            <Setter Property="Margin" Value="4"/>
+            <Setter Property="MinWidth" Value="80"/>
+        </Style>
+        <!-- The grid's default cell/header text is dark; light it up to match
+             the dark rows. -->
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#FF2A2A33"/>
+            <Setter Property="Foreground" Value="#FFE8E8E8"/>
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="BorderBrush" Value="#FF3A3A45"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+        </Style>
+        <Style TargetType="DataGridCell">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#FFE8E8E8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="4,3"/>
+        </Style>
+        <Style TargetType="DataGridRow">
+            <Setter Property="Foreground" Value="#FFE8E8E8"/>
+        </Style>
+    </Window.Resources>
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" x:Name="LineText" FontWeight="Bold" Margin="0,0,0,4"/>
+        <TextBlock Grid.Row="1" Opacity="0.7" FontSize="11" Margin="0,0,0,8"
+                   Text="Every take generated for this line. Play one to hear it, Set active to make the game use it (greyed-out takes have no audio on disk). The active take is marked ●."/>
+
+        <DataGrid Grid.Row="2" x:Name="TakesGrid" AutoGenerateColumns="False" IsReadOnly="True"
+                  HeadersVisibility="Column" HorizontalScrollBarVisibility="Disabled"
+                  Background="#FF17171C" RowBackground="#FF17171C" AlternatingRowBackground="#FF1E1E24"
+                  BorderBrush="#FF2A2A33">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="" Binding="{Binding ActiveMark}" Width="Auto" MinWidth="24"/>
+                <DataGridTextColumn Header="Take" Binding="{Binding Variant}" Width="Auto" MinWidth="46"/>
+                <DataGridTextColumn Header="Direction sent" Binding="{Binding TaggedText}" Width="*" MinWidth="200"/>
+                <DataGridTextColumn Header="Audio" Binding="{Binding AvailabilityText}" Width="Auto" MinWidth="80"/>
+                <DataGridTemplateColumn Header="" Width="Auto">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" Margin="2">
+                                <Button Content="▶" Click="OnPlayTake" Tag="{Binding}" ToolTip="Play this take"/>
+                                <Button Content="Set active" Click="OnSelectTake" Tag="{Binding}"
+                                        ToolTip="Make the game play this take"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <DockPanel Grid.Row="3" Margin="0,12,0,0" LastChildFill="False">
+            <Button DockPanel.Dock="Left" Content="Delete other takes" Click="OnDeleteOthers"
+                    Foreground="#FFE7C99A" ToolTip="Remove every take except the active one, freeing their audio (the line keeps playing)"/>
+            <Button DockPanel.Dock="Left" Content="Delete all takes" Click="OnDeleteAll"
+                    Foreground="#FFE79A9A" ToolTip="Remove every take of this line and its audio, so the game regenerates it fresh"/>
+            <TextBlock x:Name="StatusText" DockPanel.Dock="Left" VerticalAlignment="Center" Margin="10,0,0,0" Opacity="0.85"/>
+            <Button DockPanel.Dock="Right" Content="Close" IsCancel="True"/>
+        </DockPanel>
+    </Grid>
+</Window>

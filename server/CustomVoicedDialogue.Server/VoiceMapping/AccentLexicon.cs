@@ -360,6 +360,16 @@ public static class AccentLexicon
             // breaks into two syllables, the way the portrayal's most
             // famous line actually sounds.
             ["carl"] = "ˈkɔrəl", ["carl's"] = "ˈkɔrəlz",
+            // "dog" wants the open Southern "dawg", but the general
+            // stressed-vowel hold turns it into the DOUBLED length mark
+            // /dɔːːɡ/, which Inworld parses inconsistently — measured 3-5
+            // of every 10 takes dropped the rounding and drifted to a flat
+            // "darg" (F2 jumping ~850 → ~1700).  A single-length /dɔːɡ/ (an
+            // override bypasses the hold) rendered a clean rounded "dawg"
+            // 16 of 16 times.  Kept to the tested words rather than pulling
+            // the hold off every THOUGHT word, so "all/alright" keep their
+            // drawl.
+            ["dog"] = "dɔːɡ", ["dogs"] = "dɔːɡz",
         },
 
         ["boston"] = Merge(NonRhotic, new(StringComparer.Ordinal)

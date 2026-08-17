@@ -46,7 +46,7 @@ public static class Accents
             // (still 102Hz, still creaky), which is the real usage
             // pattern once EnsureVoiceTexture merges it into whatever
             // the tagger already picked.
-            VoiceTexture: "low, rough, creaky-voiced, breath catching in the throat"),
+            VoiceTexture: "low, rough, creaky-voiced"),
 
         new("boston", "American — Boston / New England",
             "a blunt, quick, working-class New England edge."),

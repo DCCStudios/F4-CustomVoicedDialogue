@@ -1,7 +1,7 @@
 <Window x:Class="CustomVoicedDialogue.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="CustomVoicedDialogue" Height="640" Width="900" MinHeight="480" MinWidth="720"
+        Title="CustomVoicedDialogue" Height="1000" Width="1405" MinHeight="480" MinWidth="720"
         Background="#FF1E1E24" Foreground="#FFE8E8E8">
     <Window.Resources>
         <Style TargetType="TextBlock">
@@ -15,6 +15,193 @@
         </Style>
         <Style TargetType="TabItem">
             <Setter Property="Padding" Value="12,4"/>
+        </Style>
+
+        <!-- This window is dark, but WPF's stock dropdown list is not: it
+             draws its items on a white popup, while the implicit TextBlock
+             style above paints their text near-white, leaving every dropdown
+             unreadable.  Give the items their own dark row so the text they
+             inherit actually shows. -->
+        <!-- Setting Background alone is not enough: the stock ComboBox draws
+             its own light chrome over it, so the selected text stayed white
+             on white.  A plain template is the only reliable way to make the
+             closed box dark as well as the popup. -->
+        <Style TargetType="ComboBox">
+            <Setter Property="Background" Value="#FF2A2A33"/>
+            <Setter Property="Foreground" Value="#FFE8E8E8"/>
+            <Setter Property="BorderBrush" Value="#FF3A3A45"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="MinHeight" Value="26"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="20"/>
+                            </Grid.ColumnDefinitions>
+                            <Border x:Name="Chrome" Grid.ColumnSpan="2"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="1" CornerRadius="2"/>
+                            <ToggleButton x:Name="Toggle" Grid.ColumnSpan="2" Focusable="False" ClickMode="Press"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border Background="Transparent"/>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <ContentPresenter x:Name="ContentSite" Grid.Column="0" Margin="{TemplateBinding Padding}"
+                                              Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                              ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                              ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
+                                              VerticalAlignment="Center" IsHitTestVisible="False">
+                                <ContentPresenter.Resources>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="#FFE8E8E8"/>
+                                        <Setter Property="TextWrapping" Value="NoWrap"/>
+                                        <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+                                    </Style>
+                                </ContentPresenter.Resources>
+                            </ContentPresenter>
+                            <!-- Editable combos (the voice pickers) let you type
+                                 an id the list does not contain, so the template
+                                 has to supply the part the ComboBox drives. -->
+                            <TextBox x:Name="PART_EditableTextBox" Grid.Column="0"
+                                     Margin="{TemplateBinding Padding}" Visibility="Collapsed"
+                                     Background="Transparent" Foreground="#FFE8E8E8" CaretBrush="#FFE8E8E8"
+                                     BorderThickness="0" VerticalAlignment="Center"/>
+                            <Path Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Data="M0,0 L8,0 L4,5 Z" Fill="#FFC8C8C8" IsHitTestVisible="False"/>
+                            <Popup x:Name="PART_Popup" Placement="Bottom" AllowsTransparency="True"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}" Focusable="False" PopupAnimation="Slide">
+                                <Border Background="#FF2A2A33" BorderBrush="#FF3A3A45" BorderThickness="1"
+                                        MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
+                                        MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                    <ScrollViewer>
+                                        <ItemsPresenter/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEditable" Value="True">
+                                <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="ContentSite" Property="Visibility" Value="Collapsed"/>
+                                <!-- Leave the text area to the caret; only the
+                                     arrow opens the list. -->
+                                <Setter TargetName="Toggle" Property="Grid.Column" Value="1"/>
+                                <Setter TargetName="Toggle" Property="Grid.ColumnSpan" Value="1"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#FF5A5A6A"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Buttons sitting inside a grid row: the window-wide Button style
+             above is sized for standalone buttons and would not fit a cell. -->
+        <Style x:Key="GridButton" TargetType="Button">
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="Margin" Value="2,0"/>
+            <Setter Property="Padding" Value="8,2"/>
+        </Style>
+
+        <!-- A clickable number/link inside a grid cell.  The stock button
+             paints a light hover background over the transparent cell, which
+             hides the light text; this template keeps the row dark and just
+             brightens the text on hover instead. -->
+        <Style x:Key="LinkButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#FF9CC4FF"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Padding" Value="6,2"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" Background="{TemplateBinding Background}"
+                                Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#FF2F3A4E"/>
+                                <Setter Property="Foreground" Value="#FFCFE2FF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#FF25507E"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="ItemRow" Background="#FF2A2A33" Padding="8,5" SnapsToDevicePixels="True">
+                            <Border.Resources>
+                                <!-- Scoped to the item: the window-wide
+                                     TextBlock style would otherwise wrap and
+                                     recolour the generated item text. -->
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="#FFE8E8E8"/>
+                                    <Setter Property="TextWrapping" Value="NoWrap"/>
+                                </Style>
+                            </Border.Resources>
+                            <ContentPresenter SnapsToDevicePixels="True"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="ItemRow" Property="Background" Value="#FF3D6EA5"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ItemRow" Property="Background" Value="#FF35506E"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ItemRow" Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Grids have the same problem: light text on stock white rows. -->
+        <Style TargetType="DataGrid">
+            <Setter Property="Background" Value="#FF17171C"/>
+            <Setter Property="RowBackground" Value="#FF17171C"/>
+            <Setter Property="AlternatingRowBackground" Value="#FF1E1E24"/>
+            <Setter Property="BorderBrush" Value="#FF2A2A33"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="#FF2A2A33"/>
+            <Setter Property="VerticalGridLinesBrush" Value="#FF2A2A33"/>
+        </Style>
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#FF2A2A33"/>
+            <Setter Property="Foreground" Value="#FFE8E8E8"/>
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="BorderBrush" Value="#FF3A3A45"/>
+            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+        </Style>
+        <Style TargetType="DataGridCell">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#FFE8E8E8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="4,3"/>
         </Style>
     </Window.Resources>
 
@@ -50,6 +237,10 @@
                     </StackPanel>
                     <CheckBox x:Name="AutoStartCheck" Content="Start the server when this app launches" Margin="0,12,0,0"
                               Foreground="#FFE8E8E8" Checked="OnAutoStartChanged" Unchecked="OnAutoStartChanged"/>
+                    <CheckBox x:Name="ShoutInCombatCheck" Content="Shout lines fought over — raise the voice in combat" Margin="0,10,0,0"
+                              Foreground="#FFE8E8E8" Checked="OnShoutInCombatChanged" Unchecked="OnShoutInCombatChanged"/>
+                    <TextBlock TextWrapping="Wrap" Opacity="0.7" FontSize="11" Margin="20,2,0,0"
+                               Text="With this on, a line said in combat to someone hostile is performed at full volume, and one called to an ally is raised to carry over the noise. Off, combat lines stay level and carry their pressure through attitude instead. Threats made outside a fight stay cold and quiet either way, and sneaking always whispers. Affects lines generated from now on."/>
                     <TextBlock x:Name="CacheStatsText" Margin="0,16,0,4" Opacity="0.8"/>
                     <StackPanel Orientation="Horizontal">
                         <Button Content="Open audio cache" Click="OnOpenCache"/>
@@ -70,6 +261,8 @@
                     <StackPanel Grid.Row="0" Orientation="Horizontal">
                         <TextBlock Text="Service:" VerticalAlignment="Center" Margin="0,0,8,0"/>
                         <ComboBox x:Name="ProviderCombo" Width="260" SelectionChanged="OnProviderSelected"/>
+                        <Button x:Name="SaveProviderButton" Content="Save" Click="OnSaveProviderSettings"
+                                ToolTip="Store these provider settings. Test connection and Synthesize also save them."/>
                         <Button x:Name="TestConnectionButton" Content="Test connection" Click="OnTestConnection"/>
                         <TextBlock x:Name="TestConnectionResult" VerticalAlignment="Center" Margin="8,0,0,0" TextWrapping="Wrap" MaxWidth="320"/>
                     </StackPanel>
@@ -80,14 +273,23 @@
                         <StackPanel>
                             <TextBlock FontWeight="Bold" Text="Test synthesis"/>
                             <StackPanel x:Name="TestVoicePanel" Margin="0,6,0,0"/>
-                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                <TextBox x:Name="TestSynthesisText" Width="420" Text="I've been looking for this vault for weeks."/>
-                                <Button x:Name="TestSynthesisButton" Content="Synthesize ▶" Click="OnTestSynthesis"/>
-                            </StackPanel>
+                            <!-- Docked so the input takes whatever width the
+                                 window has left instead of a fixed 420. -->
+                            <DockPanel Margin="0,6,0,0" LastChildFill="True">
+                                <Button x:Name="TestSynthesisButton" DockPanel.Dock="Right"
+                                        Content="Synthesize ▶" Click="OnTestSynthesis"/>
+                                <TextBox x:Name="TestSynthesisText" MinWidth="240" VerticalContentAlignment="Center"
+                                         Text="I've been looking for this vault for weeks."/>
+                            </DockPanel>
                             <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                                 <CheckBox x:Name="TestAutoTagCheck" Content="Auto-tag emotion steering (Inworld tts-2)"
                                           Foreground="#FFE8E8E8" VerticalAlignment="Center"/>
                                 <Button Content="Sample line" Click="OnSampleTestLine" Margin="12,0,0,0"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                <TextBlock Text="Situation" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <ComboBox x:Name="TestSceneCombo" Width="300" VerticalAlignment="Center"
+                                          ToolTip="Perform the line as if it were spoken in this situation (applies when auto-tagging is on)."/>
                             </StackPanel>
                             <TextBlock x:Name="TestSynthesisResult" Margin="0,6,0,0" TextWrapping="Wrap" Opacity="0.9"/>
                         </StackPanel>
@@ -96,6 +298,9 @@
             </TabItem>
 
             <TabItem Header="Player Voice">
+                <!-- This tab is taller than a small window, so it scrolls
+                     rather than clipping the accent controls off the bottom. -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="16">
                     <TextBlock Text="Your character's voice" FontSize="18" FontWeight="Bold" Margin="0,0,0,8"/>
                     <TextBlock TextWrapping="Wrap" Opacity="0.8"
@@ -112,7 +317,19 @@
                     <TextBlock TextWrapping="Wrap" Opacity="0.8"
                                Text="Signature words are swapped for exact phonetic (IPA) pronunciations before synthesis — that is what the /slashes/ in the preview are — so the voice actually speaks with the accent rather than just being told about it. Needs Inworld with inworld-tts-2."/>
                     <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                        <ComboBox x:Name="PlayerAccentCombo" Width="320" DisplayMemberPath="DisplayName"/>
+                        <!-- An explicit item template rather than
+                             DisplayMemberPath: the closed box renders through
+                             SelectionBoxItemTemplate, which DisplayMemberPath
+                             does not populate until the list has been opened
+                             once — until then it falls back to ToString() and
+                             shows the raw record. -->
+                        <ComboBox x:Name="PlayerAccentCombo" Width="320">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding DisplayName}"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
                         <Button Content="Preview ▶" Click="OnPreviewPlayerAccent"/>
                         <Button Content="Save" Click="OnSavePlayerAccent"/>
                     </StackPanel>
@@ -120,8 +337,13 @@
                     <TextBlock Text="Preview text" Margin="0,12,0,0"/>
                     <TextBlock TextWrapping="Wrap" Opacity="0.7" FontSize="11"
                                Text="Type your own line and Preview will speak it instead of cycling the built-in samples. Leave blank to use the samples."/>
-                    <TextBox x:Name="PlayerAccentPreviewText" Width="480" HorizontalAlignment="Left"
+                    <TextBox x:Name="PlayerAccentPreviewText" MaxWidth="900" HorizontalAlignment="Stretch"
                              Margin="0,6,0,0" AcceptsReturn="False" TextWrapping="Wrap"/>
+
+                    <TextBlock Text="Situation" Margin="0,12,0,0"/>
+                    <TextBlock TextWrapping="Wrap" Opacity="0.7" FontSize="11"
+                               Text="Perform the preview as if the line were spoken in this situation — the same options the game reports while you play. The same words come out warm to a friend and sarcastic to someone hostile, and drop to a whisper while sneaking."/>
+                    <ComboBox x:Name="PlayerAccentSceneCombo" Width="320" HorizontalAlignment="Left" Margin="0,6,0,0"/>
 
                     <TextBlock Text="Accent imperfection" Margin="0,16,0,0"/>
                     <TextBlock TextWrapping="Wrap" Opacity="0.7" FontSize="11"
@@ -134,6 +356,7 @@
                     </StackPanel>
                     <TextBlock x:Name="PlayerAccentResult" Margin="0,8,0,0" Opacity="0.9"/>
                 </StackPanel>
+                </ScrollViewer>
             </TabItem>
 
             <TabItem Header="NPC Voices">
@@ -151,23 +374,118 @@
                         </StackPanel>
                     </StackPanel>
                     <DataGrid x:Name="NpcGrid" Grid.Row="1" Margin="0,8,0,0" AutoGenerateColumns="False"
-                              CanUserAddRows="False" HeadersVisibility="Column">
+                              CanUserAddRows="False" HeadersVisibility="Column"
+                              HorizontalScrollBarVisibility="Disabled">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Voice type" Binding="{Binding VoiceType}" IsReadOnly="True" Width="200"/>
-                            <DataGridTextColumn Header="Auto-assigned voice" Binding="{Binding AutoVoice}" IsReadOnly="True" Width="200"/>
-                            <DataGridTextColumn Header="Override (blank = auto)" Binding="{Binding Override}" Width="200"/>
-                            <DataGridComboBoxColumn x:Name="NpcAccentColumn" Header="Accent" Width="220"
+                            <DataGridTextColumn Header="Voice type" Binding="{Binding VoiceType}" IsReadOnly="True" Width="*" MinWidth="120"/>
+                            <DataGridTextColumn Header="Auto-assigned voice" Binding="{Binding AutoVoice}" IsReadOnly="True" Width="*" MinWidth="120"/>
+                            <DataGridTextColumn Header="Override (blank = auto)" Binding="{Binding Override}" Width="*" MinWidth="120"/>
+                            <DataGridComboBoxColumn x:Name="NpcAccentColumn" Header="Accent" Width="*" MinWidth="140"
                                                     SelectedValueBinding="{Binding Accent}"
                                                     SelectedValuePath="Id" DisplayMemberPath="DisplayName"/>
-                            <DataGridTemplateColumn Header="" Width="80">
+                            <DataGridTemplateColumn Header="" Width="Auto">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Button Content="▶" Click="OnPreviewNpcVoice" Tag="{Binding}"/>
+                                        <Button Content="▶" Click="OnPreviewNpcVoice" Tag="{Binding}" Margin="2"
+                                                Style="{StaticResource GridButton}"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Lines">
+                <Grid Margin="16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0">
+                        <TextBlock Text="Every line generated so far, the direction it was performed with, and the voice file it was written to. Regenerate re-rolls a line's delivery; the game picks up the new take on its next encounter."
+                                   Foreground="#FFB0B0B0" Margin="0,0,0,6" TextWrapping="Wrap"/>
+                        <Border Background="#FF23232B" CornerRadius="4" Padding="10,7" Margin="0,0,0,8">
+                            <StackPanel>
+                                <TextBlock Text="Direct… — how the box reads what you type:" FontWeight="Bold" Foreground="#FFC8C8C8"/>
+                                <TextBlock Margin="0,3,0,0" TextWrapping="Wrap" Foreground="#FFA8A8A8">
+                                    <Run FontWeight="Bold" Foreground="#FFCFCFCF" Text="plain words vs your own [bracket]"/>
+                                    <Run Text=" — plain words are shaped by the model into direction; a [bracket] you write is used exactly as typed (the character voice still applies)."/>
+                                </TextBlock>
+                                <TextBlock Margin="0,4,0,0" TextWrapping="Wrap" Foreground="#FFA8A8A8">
+                                    <Run FontWeight="Bold" Foreground="#FFCFCFCF" Text="*nv* outside the brackets"/>
+                                    <Run Text=" — drops the spoken words. Only the bracket is performed; the marker text itself is never sent. Example: "/>
+                                    <Run FontStyle="Italic" Foreground="#FFB8C8D8" Text="[sigh] *nv*"/>
+                                    <Run Text=" sends just [sigh]. (A bare *sighs* with no bracket becomes an official [sigh].)"/>
+                                </TextBlock>
+                                <TextBlock Margin="0,4,0,0" TextWrapping="Wrap" Foreground="#FFA8A8A8">
+                                    <Run FontWeight="Bold" Foreground="#FFCFCFCF" Text="*ph* outside the brackets"/>
+                                    <Run Text=" for a line that is itself an onomatopoeic sound the game spelled out (like Nnyyyaaarrgghh!). Translates that spelling into phonetic sounds the synthesizer can actually voice, since it chokes on the raw letters. Example: "/>
+                                    <Run FontStyle="Italic" Foreground="#FFB8C8D8" Text="line Nnyyyaaarrgghh! + [loud pained scream] *ph*"/>
+                                    <Run Text=" gives a clean, sustained scream."/>
+                                </TextBlock>
+                                <TextBlock Margin="0,4,0,0" TextWrapping="Wrap" Foreground="#FFA8A8A8">
+                                    <Run FontWeight="Bold" Foreground="#FFCFCFCF" Text="exact-text inside the bracket"/>
+                                    <Run Text=" — sends your bracket verbatim with nothing auto-added (no accent, vocal fry, or scene), and the line is not spoken unless you type it too. Example: "/>
+                                    <Run FontStyle="Italic" Foreground="#FFB8C8D8" Text="[exact-text weary, low] I said leave."/>
+                                    <Run Text=" sends exactly [weary, low] I said leave."/>
+                                </TextBlock>
+                                <TextBlock Margin="0,4,0,0" TextWrapping="Wrap" Foreground="#FF8A8A8A" FontSize="11"
+                                           Text="Regenerate re-rolls with the normal rules and tagging, not your directed text — reopen Direct to use or edit that. A bare bracket with no official sound word and no spoken text (e.g. [exact-text calm] alone) is rejected by Inworld — add words, an official sound (sigh/laugh/breathe), or use *ph*."/>
+                            </StackPanel>
+                        </Border>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBox x:Name="LineFilterBox" Width="260" TextChanged="OnLineFilterChanged"
+                                     ToolTip="Filter by text, file name or voice"/>
+                            <Button Content="Refresh" Click="OnRefreshLines" Margin="8,0,0,0"/>
+                            <Button Content="Open catalogue file" Click="OnOpenLineLog" Margin="8,0,0,0"/>
+                            <TextBlock x:Name="LineSummary" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <!-- Star widths so the columns share whatever the window
+                         gives them; the action column sizes to its buttons so
+                         Regenerate can never fall off the edge. -->
+                    <DataGrid x:Name="LinesGrid" Grid.Row="1" Margin="0,8,0,0" AutoGenerateColumns="False" IsReadOnly="True"
+                              HeadersVisibility="Column" SelectionChanged="OnLineSelected"
+                              HorizontalScrollBarVisibility="Disabled" ColumnWidth="SizeToHeader">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Line" Binding="{Binding Text}" Width="2*" MinWidth="160"/>
+                            <DataGridTextColumn Header="Voice" Binding="{Binding Voice}" Width="*" MinWidth="90"/>
+                            <DataGridTemplateColumn Header="Take" Width="Auto" MinWidth="52">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Content="{Binding Variant}" Click="OnOpenTakes" Tag="{Binding}"
+                                                ToolTip="Click to pick an earlier take"
+                                                Style="{StaticResource LinkButton}"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Status" Binding="{Binding HealthText}" Width="Auto" MinWidth="92"/>
+                            <DataGridTemplateColumn Header="" Width="Auto">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" Margin="2">
+                                            <Button Content="▶" Click="OnPlayLine" Tag="{Binding}"
+                                                    Style="{StaticResource GridButton}" ToolTip="Play this take"/>
+                                            <Button Content="Regenerate" Click="OnRegenerateLine" Tag="{Binding}"
+                                                    Style="{StaticResource GridButton}"
+                                                    ToolTip="Generate a different reading of this line"/>
+                                            <Button Content="Direct…" Click="OnDirectLine" Tag="{Binding}"
+                                                    Style="{StaticResource GridButton}"
+                                                    ToolTip="Type how this line should be performed, then generate it that way"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <StackPanel Grid.Row="2" Margin="0,8,0,0">
+                        <TextBlock Text="Direction sent to the synthesizer" Foreground="#FFB0B0B0"/>
+                        <TextBox x:Name="LineTaggedText" IsReadOnly="True" TextWrapping="Wrap" MinHeight="46"
+                                 Background="#FF17171C" Foreground="#FFCFCFCF" BorderThickness="0"/>
+                        <TextBlock x:Name="LineFileText" Foreground="#FF8A8A8A" Margin="0,4,0,0"/>
+                    </StackPanel>
                 </Grid>
             </TabItem>
 
@@ -182,17 +500,18 @@
                         <TextBlock x:Name="SimulateResult" VerticalAlignment="Center" Margin="8,0,0,0" TextWrapping="Wrap" MaxWidth="500"/>
                     </StackPanel>
                     <DataGrid x:Name="HistoryGrid" Grid.Row="1" Margin="0,8,0,0" AutoGenerateColumns="False" IsReadOnly="True"
-                              HeadersVisibility="Column">
+                              HeadersVisibility="Column" HorizontalScrollBarVisibility="Disabled">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Time" Binding="{Binding Time}" Width="80"/>
-                            <DataGridTextColumn Header="Text" Binding="{Binding Text}" Width="260"/>
-                            <DataGridTextColumn Header="Voice" Binding="{Binding Voice}" Width="140"/>
-                            <DataGridTextColumn Header="ms" Binding="{Binding Milliseconds}" Width="70"/>
-                            <DataGridTextColumn Header="Result" Binding="{Binding ResultText}" Width="180"/>
-                            <DataGridTemplateColumn Header="" Width="70">
+                            <DataGridTextColumn Header="Time" Binding="{Binding Time}" Width="Auto" MinWidth="64"/>
+                            <DataGridTextColumn Header="Text" Binding="{Binding Text}" Width="2*" MinWidth="160"/>
+                            <DataGridTextColumn Header="Voice" Binding="{Binding Voice}" Width="*" MinWidth="90"/>
+                            <DataGridTextColumn Header="ms" Binding="{Binding Milliseconds}" Width="Auto" MinWidth="44"/>
+                            <DataGridTextColumn Header="Result" Binding="{Binding ResultText}" Width="*" MinWidth="110"/>
+                            <DataGridTemplateColumn Header="" Width="Auto">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Button Content="▶" Click="OnReplayHistory" Tag="{Binding}"/>
+                                        <Button Content="▶" Click="OnReplayHistory" Tag="{Binding}" Margin="2"
+                                                Style="{StaticResource GridButton}"/>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>

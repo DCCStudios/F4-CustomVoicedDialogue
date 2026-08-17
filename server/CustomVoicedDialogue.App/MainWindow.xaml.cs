@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
 using CustomVoicedDialogue.Server;
+using CustomVoicedDialogue.Server.Lines;
 using CustomVoicedDialogue.Server.Providers;
 using CustomVoicedDialogue.Server.VoiceMapping;
 
@@ -35,6 +36,19 @@ public partial class MainWindow : Window
         public string? WavPath { get; init; }
     }
 
+    public sealed class LineRow
+    {
+        public string VoicePath { get; init; } = "";
+        public string Text { get; init; } = "";
+        public string TaggedText { get; init; } = "";
+        public string Voice { get; init; } = "";
+        public int Variant { get; init; }
+        public string Scene { get; init; } = "";
+        public string CustomPrompt { get; init; } = "";
+        public string HealthText { get; init; } = "";
+        public string? WavPath { get; init; }
+    }
+
     public MainWindow()
     {
         // Second-instance startup shuts the application down before the
@@ -52,6 +66,7 @@ public partial class MainWindow : Window
 
         PortBox.Text = App.Config.Port.ToString();
         AutoStartCheck.IsChecked = App.Config.StartServerOnLaunch;
+        ShoutInCombatCheck.IsChecked = App.Config.ShoutInCombat;
         UpdateCheckBox.IsChecked = App.Config.CheckForUpdates;
         CurrentVersionText.Text = $"CustomVoicedDialogue {UpdateChecker.CurrentVersion}";
 
@@ -74,6 +89,11 @@ public partial class MainWindow : Window
         _statusTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         _statusTimer.Tick += (_, _) => RefreshStatus();
         _statusTimer.Start();
+
+        // The catalogue re-validates itself on a background heartbeat, so a
+        // wav deleted while the app is open shows up without a manual refresh.
+        App.Synthesis.Lines.Changed += () => Dispatcher.BeginInvoke(RefreshLines);
+        RefreshLines();
 
         Loaded += async (_, _) =>
         {
@@ -196,6 +216,15 @@ public partial class MainWindow : Window
         App.Config.Save();
     }
 
+    private void OnShoutInCombatChanged(object sender, RoutedEventArgs e)
+    {
+        // Deliberately does NOT invalidate existing audio: it is not part of
+        // the voice fingerprint, so already-generated lines keep the take
+        // they were performed with and only new lines follow the new setting.
+        App.Config.ShoutInCombat = ShoutInCombatCheck.IsChecked == true;
+        App.Config.Save();
+    }
+
     private void OnOpenCache(object sender, RoutedEventArgs e) =>
         Process.Start(new ProcessStartInfo("explorer.exe", App.Synthesis.Cache.CacheDirectory) { UseShellExecute = true });
 
@@ -249,6 +278,21 @@ public partial class MainWindow : Window
         return App.Config.SettingsFor(provider);
     }
 
+    private void OnSaveProviderSettings(object sender, RoutedEventArgs e)
+    {
+        var provider = SelectedProvider;
+        if (provider is null)
+        {
+            return;
+        }
+        // Until now these were only written as a side effect of testing or
+        // synthesizing, so a change made and left alone was quietly lost.
+        CommitProviderSettings(provider);
+        TestConnectionResult.Text = $"✓ saved {provider.DisplayName} settings";
+        TestConnectionResult.Foreground = Brushes.LimeGreen;
+        RefreshStatus();
+    }
+
     private async void OnTestConnection(object sender, RoutedEventArgs e)
     {
         var provider = SelectedProvider;
@@ -284,6 +328,19 @@ public partial class MainWindow : Window
         "You did it! I can't believe you actually did it!",
         "Stay very quiet. Something's moving down there.",
         "Why do I have to pay for this stuff? I'm the Overboss, remember?",
+        // These turn on the Situation dropdown rather than on their own
+        // words — the same sentence should read very differently to a
+        // friend and to someone who was just shooting at you.
+        "Thanks for the help. I mean that.",
+        "We need to move. Right now.",
+        "Don't make me do this.",
+        "Put that down before somebody gets hurt.",
+        "Nice work back there. Thought we were finished for sure.",
+        "I've got one round left, so make it count.",
+        "You really thought I wouldn't find out?",
+        "Everybody stay calm. Nobody has to get hurt today.",
+        "That's close enough. Not another step.",
+        "It's over. Just walk away and we forget this happened.",
     };
     private int _sampleTestLineIndex;
     // In-game a line's take is fixed (hashed from its voice path); the
@@ -328,7 +385,11 @@ public partial class MainWindow : Window
                 var tagSettings = new ProviderSettings(
                     new Dictionary<string, string>(settings.Values, StringComparer.OrdinalIgnoreCase) { ["auto_tag"] = "true" });
                 var takeSeed = $"test\\take-{_testTakeCounter++}";
-                var result = await Task.Run(() => inworld.AutoTagDetailedAsync(text, "PlayerVoiceMale01", true, tagSettings, CancellationToken.None, takeSeed));
+                var scene = (TestSceneCombo.SelectedItem as SceneOption ?? SceneContexts.Default).Value;
+                var result = await Task.Run(() => inworld.AutoTagDetailedAsync(
+                    text, "PlayerVoiceMale01", true, tagSettings, CancellationToken.None, takeSeed,
+                    accent: null, accentImperfection: 0, retake: 0, scene: scene,
+                    shoutInCombat: App.Config.ShoutInCombat));
                 tagError = result.RouterError;
                 if (!string.Equals(result.Text, text, StringComparison.Ordinal))
                 {
@@ -440,6 +501,13 @@ public partial class MainWindow : Window
         PlayerAccentCombo.ItemsSource = Accents.All;
         PlayerAccentCombo.SelectedItem = Accents.Get(App.Config.PlayerAccent);
         AccentImperfectionSlider.Value = Math.Clamp(App.Config.AccentImperfection, 0, 100);
+
+        // Both previews offer the same situations the plugin reports in
+        // play, so an audition here matches what the game will send.
+        PlayerAccentSceneCombo.ItemsSource = SceneContexts.All;
+        PlayerAccentSceneCombo.SelectedItem = SceneContexts.Default;
+        TestSceneCombo.ItemsSource = SceneContexts.All;
+        TestSceneCombo.SelectedItem = SceneContexts.Default;
     }
 
     private void OnSavePlayerAccent(object sender, RoutedEventArgs e)
@@ -470,6 +538,10 @@ public partial class MainWindow : Window
         // consonant changes, h-dropping, broad BATH, LOT rounding, r
         // flavour (tap/trill words), yod words, and the function words
         // the lexicons target.
+        // The later lines lean on the situation rather than the vowels:
+        // each one is a sentence whose meaning genuinely turns on who is
+        // listening and what is happening, so switching the Situation
+        // dropdown makes an audible difference.
         string[] samples =
         [
             "I'm not going to ask you again. Put the gun down and walk away.",
@@ -478,6 +550,14 @@ public partial class MainWindow : Window
             "There's nothing better than a hot meal and a good night's sleep.",
             "Sorry, friend — we haven't heard any news about the raiders around here.",
             "What was that? Stay right where you are and keep your voice down.",
+            "Thanks for the help. I mean that.",
+            "We need to move. Right now.",
+            "Don't make me do this.",
+            "You really thought I wouldn't find out about the water chip?",
+            "Get behind me and don't look. I'll handle it.",
+            "Nice work back there. Thought we were finished for sure.",
+            "I've got one round left, so make it count.",
+            "Put that down before somebody gets hurt.",
         ];
         // Read every control up front: the synthesis call runs on a worker
         // thread, and WPF controls may only be touched on the UI thread.
@@ -485,6 +565,7 @@ public partial class MainWindow : Window
         var imperfection = (int)Math.Round(AccentImperfectionSlider.Value);
         var customText = PlayerAccentPreviewText.Text.Trim();
         var sample = customText.Length > 0 ? customText : samples[_testTakeCounter % samples.Length];
+        var scene = (PlayerAccentSceneCombo.SelectedItem as SceneOption ?? SceneContexts.Default).Value;
 
         PlayerAccentResult.Text = "synthesizing preview…";
         try
@@ -496,7 +577,7 @@ public partial class MainWindow : Window
                 var tagged = await inworld.AutoTagDetailedAsync(
                     sample, "PlayerVoiceMale01", true, settings, CancellationToken.None,
                     $"accent-preview/{accent.Id}/{_testTakeCounter++}",
-                    accent, imperfection);
+                    accent, imperfection, retake: 0, scene: scene, shoutInCombat: App.Config.ShoutInCombat);
                 // Preview-only: keep the sample takes at conversational
                 // tempo so the accent is what you hear, not the pacing.
                 line = InworldProvider.ScrubInstruction(tagged.Text);
@@ -629,6 +710,184 @@ public partial class MainWindow : Window
         if ((sender as Button)?.Tag is HistoryRow { WavPath: { } path } && File.Exists(path))
         {
             _preview.PlayFile(path);
+        }
+    }
+
+    // ---- lines tab -------------------------------------------------------
+
+    private void RefreshLines()
+    {
+        var filter = LineFilterBox?.Text?.Trim() ?? "";
+        var records = App.Synthesis.Lines.Records;
+
+        var rows = records
+            .Where(record =>
+                filter.Length == 0 ||
+                record.Text.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
+                record.VoicePath.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
+                record.Voice.Contains(filter, StringComparison.OrdinalIgnoreCase))
+            .Select(record => new LineRow
+            {
+                VoicePath = record.VoicePath,
+                Text = record.Text,
+                TaggedText = record.TaggedText,
+                Voice = record.Voice,
+                Variant = record.Variant,
+                Scene = record.Scene,
+                CustomPrompt = record.CustomPrompt,
+                HealthText = DescribeHealth(record.Health),
+                WavPath = string.IsNullOrEmpty(record.CacheKey) ? null : App.Synthesis.Cache.PathFor(record.CacheKey),
+            })
+            .ToList();
+
+        // Preserve the selected line across a refresh (regenerating one
+        // rebuilds the grid, and losing the row under the cursor mid-audition
+        // would be maddening).
+        var selected = (LinesGrid.SelectedItem as LineRow)?.VoicePath;
+        LinesGrid.ItemsSource = rows;
+        if (selected is not null)
+        {
+            LinesGrid.SelectedItem = rows.FirstOrDefault(r => r.VoicePath == selected);
+        }
+
+        var missing = records.Count(r => r.Health is LineHealth.MissingInGame or LineHealth.MissingInCache or LineHealth.Missing);
+        LineSummary.Text = missing == 0
+            ? $"{records.Count} line(s)"
+            : $"{records.Count} line(s), {missing} with missing audio";
+    }
+
+    private static string DescribeHealth(LineHealth health) => health switch
+    {
+        LineHealth.Ok => "ok",
+        LineHealth.MissingInGame => "gone from game",
+        LineHealth.MissingInCache => "gone from cache",
+        LineHealth.Missing => "audio deleted",
+        _ => "not checked",
+    };
+
+    private void OnLineFilterChanged(object sender, TextChangedEventArgs e) => RefreshLines();
+
+    private void OnRefreshLines(object sender, RoutedEventArgs e)
+    {
+        App.Synthesis.ValidateLines();
+        RefreshLines();
+    }
+
+    private void OnOpenLineLog(object sender, RoutedEventArgs e)
+    {
+        var path = App.Synthesis.Lines.Path;
+        if (!File.Exists(path))
+        {
+            LineSummary.Text = "no lines have been generated yet";
+            return;
+        }
+        Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+    }
+
+    private void OnLineSelected(object sender, SelectionChangedEventArgs e)
+    {
+        if (LinesGrid.SelectedItem is not LineRow row)
+        {
+            LineTaggedText.Text = "";
+            LineFileText.Text = "";
+            return;
+        }
+        LineTaggedText.Text = row.TaggedText;
+        LineFileText.Text = row.Scene.Length > 0
+            ? $"{row.VoicePath}     (scene: {row.Scene})"
+            : row.VoicePath;
+    }
+
+    private void OnOpenTakes(object sender, RoutedEventArgs e)
+    {
+        if ((sender as System.Windows.Controls.Button)?.Tag is not LineRow row)
+        {
+            return;
+        }
+        var takes = App.Synthesis.TakesFor(row.VoicePath);
+        if (takes.Count == 0)
+        {
+            LineSummary.Text = "no takes on record for this line yet";
+            return;
+        }
+        var dialog = new TakesWindow(
+            row.VoicePath,
+            row.Text,
+            takes,
+            play: path => _preview.PlayFile(path),
+            selectTake: cacheKey => App.Synthesis.SelectTake(row.VoicePath, cacheKey),
+            deleteAll: () => App.Synthesis.DeleteAllTakes(row.VoicePath),
+            deleteOthers: () => App.Synthesis.DeleteOtherTakes(row.VoicePath))
+        {
+            Owner = this,
+        };
+        dialog.ShowDialog();
+        RefreshLines();
+    }
+
+    private void OnPlayLine(object sender, RoutedEventArgs e)
+    {
+        if ((sender as Button)?.Tag is LineRow { WavPath: { } path } && File.Exists(path))
+        {
+            _preview.PlayFile(path);
+            return;
+        }
+        LineSummary.Text = "that take's audio is no longer on disk — regenerate it";
+    }
+
+    private async void OnRegenerateLine(object sender, RoutedEventArgs e)
+    {
+        if ((sender as Button)?.Tag is LineRow row)
+        {
+            await RegenerateAndPlayAsync((Button)sender, row, direction: null);
+        }
+    }
+
+    private async void OnDirectLine(object sender, RoutedEventArgs e)
+    {
+        if ((sender as Button)?.Tag is not LineRow row)
+        {
+            return;
+        }
+        var dialog = new PromptWindow(row.Text, row.CustomPrompt) { Owner = this };
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+        await RegenerateAndPlayAsync((Button)sender, row, dialog.Direction);
+    }
+
+    /// <summary>Generates a fresh take and plays it — the point of asking for
+    /// one is hearing it, so it is never left sitting silently in the grid.</summary>
+    private async Task RegenerateAndPlayAsync(Button button, LineRow row, string? direction)
+    {
+        button.IsEnabled = false;
+        LineSummary.Text = direction is { Length: > 0 }
+            ? "generating a directed take…"
+            : "generating a new take…";
+        try
+        {
+            var status = await App.Synthesis.RegenerateAsync(row.VoicePath, direction);
+            RefreshLines();
+            if (status is { State: JobState.Done, WavPath: { } path } && File.Exists(path))
+            {
+                LineSummary.Text = "new take ready — the game picks it up on its next encounter with this line";
+                _preview.PlayFile(path);
+            }
+            else
+            {
+                LineSummary.Text = status?.Failure is { Length: > 0 } failure
+                    ? $"regeneration failed: {Truncate(failure, 90)}"
+                    : "regeneration did not finish";
+            }
+        }
+        catch (Exception exception)
+        {
+            LineSummary.Text = $"regeneration failed: {Truncate(exception.Message, 90)}";
+        }
+        finally
+        {
+            button.IsEnabled = true;
         }
     }
 
